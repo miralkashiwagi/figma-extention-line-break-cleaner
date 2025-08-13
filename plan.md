@@ -360,16 +360,42 @@ const config = await figma.clientStorage.getAsync('line-break-cleaner-config');
 
 ## Figma Plugin実装上の重要ポイント
 
-### フォント処理（Figma API制約）
+### フォント処理（最適化された実装）
 ```typescript
-// ✅ 正しい実装
-async function processTextNode(node: TextNode) {
-  if (node.hasMissingFont) {
-    figma.ui.postMessage({ type: 'warning', message: `Skipping node with missing font: ${node.name}` });
-    return;
+// ✅ Line Break Cleaner最適化実装
+async function analyzeTextNode(node: TextNode): Promise<DetectedIssue[]> {
+  // 📖 解析フェーズ：フォント読み込み不要
+  const issues: DetectedIssue[] = [];
+  
+  // 読み取り専用操作（loadFontAsync不要）
+  const currentText = node.characters;
+  const currentAutoResize = node.textAutoResize;
+  const hasMissingFont = node.hasMissingFont;
+  const nodeWidth = node.width;
+  const paragraphSpacing = node.paragraphSpacing;
+  
+  // Auto-width検出
+  if (currentAutoResize === "WIDTH" && currentText.length >= minCharacters) {
+    if (currentText.includes('\n')) {
+      issues.push({ type: 'auto-width', confidence: 0.9 });
+    }
   }
   
-  // 必須：フォント読み込み
+  // Edge-breaking検出（推定計算のみ）
+  // Soft-break検出
+  
+  return issues;
+}
+
+async function applyTextChanges(node: TextNode, changes: ProcessingChanges): Promise<void> {
+  // 🔧 処理フェーズ：フォント読み込み必要
+  
+  // Missing fontチェック（必須）
+  if (node.hasMissingFont) {
+    throw new Error(`Cannot process node with missing font: ${node.name}`);
+  }
+  
+  // フォント読み込み（変更時のみ必要）
   if (node.fontName !== figma.mixed) {
     await figma.loadFontAsync(node.fontName);
   } else {
@@ -379,8 +405,13 @@ async function processTextNode(node: TextNode) {
     }
   }
   
-  // テキスト変更
-  node.characters = processedText;
+  // 実際の変更適用
+  if (changes.newAutoResize) {
+    node.textAutoResize = changes.newAutoResize;
+  }
+  if (changes.newText) {
+    node.characters = changes.newText;
+  }
 }
 ```
 
