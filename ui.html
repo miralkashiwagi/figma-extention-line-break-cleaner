@@ -327,7 +327,9 @@
       // 選択関連ボタンの状態
       const selectAllBtn = document.getElementById('select-all');
       const selectNoneBtn = document.getElementById('select-none');
-      if (selectAllBtn) selectAllBtn.disabled = processing || currentResults.length === 0;
+      // 問題のあるノードがある場合のみ「すべて選択」を有効にする
+      const withIssues = currentResults.filter(r => r.issues.length > 0);
+      if (selectAllBtn) selectAllBtn.disabled = processing || withIssues.length === 0;
       if (selectNoneBtn) selectNoneBtn.disabled = processing;
     }
 
@@ -343,7 +345,7 @@
       const withIssues = results.filter(r => r.issues.length > 0);
       summary.innerHTML = `
         <div class="info-message">
-          ${results.length}ノード検査完了 - ${withIssues.length}ノードで問題検出
+          ${withIssues.length}ノード検出
         </div>
       `;
       
@@ -352,10 +354,19 @@
         const item = document.createElement('div');
         item.className = 'result-item has-issues';
         item.dataset.nodeId = result.node.id;
+        // テキスト内容を安全にHTMLエスケープ
+        const textPreview = (result.originalText || '').substring(0, 50) + 
+                           (result.originalText.length > 50 ? '...' : '');
+        const escapedText = textPreview
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+        
         item.innerHTML = `
           <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
           <div class="result-content">
-            <div class="result-node-name">${result.node.name || 'Unnamed'}</div>
+            <div class="result-node-name">${escapedText || result.node.name || 'Unnamed'}</div>
             <div class="result-changes">${result.estimatedChanges}</div>
           </div>
         `;
@@ -386,6 +397,12 @@
         list.appendChild(item);
       });
       
+      // 選択関連ボタンの状態を更新
+      const selectAllBtn = document.getElementById('select-all');
+      const selectNoneBtn = document.getElementById('select-none');
+      if (selectAllBtn) selectAllBtn.disabled = withIssues.length === 0;
+      if (selectNoneBtn) selectNoneBtn.disabled = false;
+      
       container.style.display = 'block';
     }
 
@@ -409,15 +426,13 @@
     function updateSelectionAndFocus() {
       const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
       
-      // Figmaでノードを選択
-      if (selectedNodes.length > 0) {
-        parent.postMessage({
-          pluginMessage: {
-            type: 'select-nodes',
-            nodeIds: Array.from(selectedNodeIds)
-          }
-        }, '*');
-      }
+      // Figmaでノードを選択（空の場合も含む）
+      parent.postMessage({
+        pluginMessage: {
+          type: 'select-nodes',
+          nodeIds: Array.from(selectedNodeIds)
+        }
+      }, '*');
     }
     
     // Figmaの選択変更をUIに反映
@@ -439,11 +454,20 @@
     }
 
     function selectNoneNodes() {
-      const checkboxes = document.querySelectorAll('.node-checkbox');
-      checkboxes.forEach(checkbox => {
-        checkbox.checked = false;
-        checkbox.dispatchEvent(new Event('change'));
+      // 直接selectedNodeIdsをクリアしてUI更新
+      selectedNodeIds.clear();
+      
+      // すべてのチェックボックスとUIを更新（changeイベントを発火させない）
+      document.querySelectorAll('.result-item').forEach(item => {
+        item.classList.remove('selected');
+        const checkbox = item.querySelector('.node-checkbox');
+        if (checkbox) {
+          checkbox.checked = false;
+        }
       });
+      
+      // Figmaの選択をクリア
+      updateSelectionAndFocus();
     }
 
     // Event listeners

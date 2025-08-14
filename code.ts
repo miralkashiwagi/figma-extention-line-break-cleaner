@@ -1213,18 +1213,13 @@ async function handleSelectNodes(nodeIds: string[]): Promise<void> {
       }
     }
     
-    // Figmaで選択
+    // Figmaで選択（空の配列でも実行して選択解除）
+    figma.currentPage.selection = nodesToSelect;
+    
     if (nodesToSelect.length > 0) {
-      figma.currentPage.selection = nodesToSelect;
-      
-      // 最初のノードにズーム
-      if (nodesToSelect.length === 1) {
-        figma.viewport.scrollAndZoomIntoView([nodesToSelect[0]]);
-      }
-      
       console.log(`${nodesToSelect.length}個のノードを選択しました`);
     } else {
-      console.warn('選択可能なノードがありませんでした');
+      console.log('選択を解除しました');
     }
     
   } catch (error) {
@@ -1239,8 +1234,8 @@ function handleGetCurrentSelection(): void {
     .filter(node => node.type === 'TEXT' && scannedNodeIds.has(node.id))
     .map(node => node.id);
   
-  // スキャン結果のノードが選択されている場合のみUIに通知
-  if (selectedNodeIds.length > 0 || selection.some(node => scannedNodeIds.has(node.id))) {
+  // スキャン結果があるときは常にUIに通知（選択解除も含む）
+  if (scannedNodeIds.size > 0) {
     sendToUI({
       type: 'selection-changed',
       selectedNodeIds: selectedNodeIds
