@@ -33,10 +33,6 @@ interface ProcessingChanges {
   newAutoResize?: 'NONE' | 'HEIGHT' | 'WIDTH_AND_HEIGHT' | 'TRUNCATE';
 }
 
-interface ValidationResult {
-  valid: boolean;
-  issues: string[];
-}
 
 interface ProcessingResult {
   node: TextNode;
@@ -1139,8 +1135,6 @@ function onProgress(progress: any): void {
 
 // Handle scan operation
 async function handleScan(config: ProcessingConfig): Promise<void> {
-  const selection = figma.currentPage.selection;
-
   if (isProcessing) {
     return;
   }
@@ -1538,7 +1532,7 @@ figma.on('selectionchange', () => {
 });
 
 // Initialize with saved config when plugin loads
-loadConfig().then(config => {
+loadConfig().then(() => {
   // Plugin is ready
 }).catch(error => {
   console.warn('Plugin initialization warning:', error);
