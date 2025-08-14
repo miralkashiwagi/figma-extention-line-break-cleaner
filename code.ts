@@ -571,13 +571,13 @@ class TextProcessor {
     const line1End = trimmed1.slice(-1);
     const line2Start = trimmed2.slice(0, 1);
 
-    // 日本語文字同士の場合はスペースなしで結合
-    if (this.isJapanese(line1End) && this.isJapanese(line2Start)) {
-      return trimmed1 + trimmed2;
+    // 半角英数字同士の場合はスペースを入れて結合
+    if (this.isAlphanumeric(line1End) && this.isAlphanumeric(line2Start)) {
+      return trimmed1 + ' ' + trimmed2;
     }
 
-    // その他の場合はスペースを入れて結合
-    return trimmed1 + ' ' + trimmed2;
+    // その他の場合
+    return trimmed1 + trimmed2;
   }
 
   private isJapanese(char: string): boolean {
@@ -590,6 +590,11 @@ class TextProcessor {
       (code >= 0x4E00 && code <= 0x9FAF) ||
       (code >= 0x3400 && code <= 0x4DBF)
     );
+  }
+
+  private isAlphanumeric(char: string): boolean {
+    if (!char) return false;
+    return /^[a-zA-Z0-9]$/.test(char);
   }
 
 
