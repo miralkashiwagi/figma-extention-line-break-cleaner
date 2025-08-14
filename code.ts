@@ -1432,6 +1432,22 @@ function handleGetScanMode(): void {
   }
 }
 
+function handleClearResults(): void {
+  console.log('=== 検出結果クリア ===');
+  
+  // スキャンしたノードIDをクリア
+  scannedNodeIds.clear();
+  
+  // 処理状態をリセット
+  isProcessing = false;
+  currentProcessor = null;
+  
+  // Figmaの選択もクリア
+  figma.currentPage.selection = [];
+  
+  console.log('検出結果がクリアされました');
+}
+
 // Handle cancel operation
 function handleCancel(): void {
   console.log('=== キャンセル要求 ===');
@@ -1493,6 +1509,10 @@ figma.ui.onmessage = async (msg: UIMessage) => {
         
       case 'get-scan-mode':
         handleGetScanMode();
+        break;
+        
+      case 'clear-results':
+        handleClearResults();
         break;
         
       case 'cancel':

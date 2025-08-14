@@ -81,7 +81,6 @@
 
 
     .results-container {
-      display: none;
       margin-top: 16px;
     }
 
@@ -251,10 +250,13 @@
       <!-- Results Section -->
       <div class="results-container" id="results-container">
         <h3>検出結果</h3>
-        <div id="results-summary"></div>
-        <div id="results-controls">
+        <div id="results-summary">
+          <div class="info-message">スキャンを実行すると、ここに検出結果が表示されます</div>
+        </div>
+        <div id="results-controls" style="display: none;">
           <button id="select-all" class="secondary">すべて選択</button>
           <button id="select-none" class="secondary">選択解除</button>
+          <button id="clear-results" class="secondary">検出をクリア</button>
         </div>
         <div id="results-list"></div>
       </div>
@@ -434,29 +436,34 @@
         list.appendChild(item);
       });
 
-      // 選択関連ボタンの状態を更新
+      // 選択関連ボタンの表示・状態を更新
+      const controlsDiv = document.getElementById('results-controls');
       const selectAllBtn = document.getElementById('select-all');
       const selectNoneBtn = document.getElementById('select-none');
-      if (selectAllBtn) selectAllBtn.disabled = withIssues.length === 0;
-      if (selectNoneBtn) selectNoneBtn.disabled = false;
 
-      container.style.display = 'block';
+      if (withIssues.length > 0) {
+        controlsDiv.style.display = 'flex';
+        if (selectAllBtn) selectAllBtn.disabled = false;
+        if (selectNoneBtn) selectNoneBtn.disabled = false;
+      } else {
+        controlsDiv.style.display = 'none';
+      }
     }
 
     function showError(message) {
-      const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
+      const controlsDiv = document.getElementById('results-controls');
 
       summary.innerHTML = `<div class="error-message">エラー: ${message}</div>`;
-      container.style.display = 'block';
+      controlsDiv.style.display = 'none';
     }
 
     function showWarning(message) {
-      const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
+      const controlsDiv = document.getElementById('results-controls');
 
       summary.innerHTML = `<div class="warning-message">警告: ${message}</div>`;
-      container.style.display = 'block';
+      controlsDiv.style.display = 'none';
     }
 
     // 選択とフォーカス機能
@@ -507,6 +514,31 @@
       updateSelectionAndFocus();
     }
 
+    function clearResults() {
+      // 検出結果をクリア
+      currentResults = [];
+      selectedNodeIds.clear();
+
+      // UIを初期状態に戻す
+      const summary = document.getElementById('results-summary');
+      const controlsDiv = document.getElementById('results-controls');
+      const list = document.getElementById('results-list');
+
+      summary.innerHTML = '<div class="info-message">スキャンを実行すると、ここに検出結果が表示されます</div>';
+      controlsDiv.style.display = 'none';
+      list.innerHTML = '';
+
+      // Figmaの選択もクリア
+      updateSelectionAndFocus();
+
+      // プラグイン側にもクリア通知を送信
+      parent.postMessage({
+        pluginMessage: {
+          type: 'clear-results'
+        }
+      }, '*');
+    }
+
     // Event listeners
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
@@ -514,10 +546,10 @@
       setProcessingState(true);
 
       // スキャン範囲の情報を表示
-      const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
+      const controlsDiv = document.getElementById('results-controls');
       summary.innerHTML = '<div class="info-message">スキャン中...</div>';
-      container.style.display = 'block';
+      controlsDiv.style.display = 'none';
 
       parent.postMessage({
         pluginMessage: {
@@ -530,6 +562,7 @@
     // 選択ボタンのイベントリスナー
     document.getElementById('select-all').onclick = selectAllNodes;
     document.getElementById('select-none').onclick = selectNoneNodes;
+    document.getElementById('clear-results').onclick = clearResults;
 
     document.getElementById('apply-selected').onclick = () => {
       const config = getConfig();
