@@ -68,7 +68,7 @@ class TextAnalyzer {
 
   async analyzeTextNode(node: TextNode): Promise<TextAnalysisResult> {
     const issues: DetectedIssue[] = [];
-    
+
     if (node.hasMissingFont) {
       return {
         node,
@@ -88,7 +88,7 @@ class TextAnalyzer {
     }
 
     const currentText = node.characters;
-    
+
     if (currentText.length < this.config.minCharacters) {
       return {
         node,
@@ -125,11 +125,11 @@ class TextAnalyzer {
 
   private detectAutoWidthIssues(node: TextNode): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
-    
+
     try {
       const currentAutoResize = node.textAutoResize;
       const currentText = node.characters;
-      
+
       // 固定サイズ（NONE）またはauto-heightのテキストで改行があるもの
       if ((currentAutoResize === 'NONE' || currentAutoResize === 'HEIGHT' || currentAutoResize === 'WIDTH_AND_HEIGHT') && currentText.indexOf('\n') !== -1) {
         issues.push({
@@ -142,22 +142,22 @@ class TextAnalyzer {
     } catch (error) {
       console.warn('Could not read textAutoResize for node:', node.name);
     }
-    
+
     return issues;
   }
 
   private detectEdgeBreaking(node: TextNode): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
-    
+
     try {
       const currentText = node.characters;
       const nodeWidth = node.width;
       const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
-      
+
       const autoResize = node.textAutoResize;
       if (autoResize === 'NONE' || autoResize === 'HEIGHT') {
         const suspiciousLines = this.findEdgeBreakingLines(currentText, nodeWidth, fontSize);
-        
+
         if (suspiciousLines.length > 0) {
           issues.push({
             type: 'edge-breaking',
@@ -170,24 +170,24 @@ class TextAnalyzer {
     } catch (error) {
       console.warn('Could not analyze edge breaking for node:', node.name);
     }
-    
+
     return issues;
   }
 
   private detectSoftBreaks(node: TextNode): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
-    
+
     try {
       const currentText = node.characters;
       const paragraphSpacing = node.paragraphSpacing;
-      
+
       console.log('ソフト改行検出 - paragraphSpacing:', paragraphSpacing);
       console.log('ソフト改行検出 - テキスト内容:', JSON.stringify(currentText));
-      
+
       if (paragraphSpacing === 0) {
         const softBreakCount = this.countSoftBreaks(currentText);
         console.log('ソフト改行検出 - カウント:', softBreakCount);
-        
+
         if (softBreakCount > 0) {
           issues.push({
             type: 'soft-break',
@@ -202,7 +202,7 @@ class TextAnalyzer {
     } catch (error) {
       console.warn('Could not analyze soft breaks for node:', node.name);
     }
-    
+
     return issues;
   }
 
@@ -218,35 +218,35 @@ class TextAnalyzer {
     // 自動改行を考慮した行分割
     const lines = this.simulateWordWrap(text, containerWidth, fontSize);
     console.log('Word wrap simulation result:', lines);
-    
+
     const suspiciousLines: number[] = [];
-    
+
     lines.forEach((line, index) => {
       if (line.trim().length > 0) {
         const estimatedWidth = this.estimateTextWidth(line.trim(), fontSize);
         const ratio = estimatedWidth / containerWidth;
-        
+
         console.log(`幅判定: "${line.trim().substring(0, 20)}..." (${line.trim().length}文字) 
       フォント:${fontSize}px 推定幅:${estimatedWidth.toFixed(0)}px コンテナ:${containerWidth}px 
       比率:${ratio.toFixed(2)} 閾値:${this.config.lineBreakThreshold} 
       結果:${ratio >= this.config.lineBreakThreshold ? '結合対象' : '保持'}`);
-        
+
         if (ratio >= this.config.lineBreakThreshold) {
           suspiciousLines.push(index + 1);
         }
       }
     });
-    
+
     return suspiciousLines;
   }
 
   private estimateTextWidth(text: string, fontSize: number): number {
     let totalWidth = 0;
-    
+
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       const charCode = char.charCodeAt(0);
-      
+
       // 文字種別による幅の推定（実測値 878px/55文字/16px ≈ 0.998 に基づく）
       const baseMultiplier = this.config.fontWidthMultiplier || 1.0;
       if (this.isFullWidthCharacter(charCode)) {
@@ -260,7 +260,7 @@ class TextAnalyzer {
         totalWidth += fontSize * (baseMultiplier * 0.8);
       }
     }
-    
+
     return totalWidth;
   }
 
@@ -284,10 +284,10 @@ class TextAnalyzer {
 
   private countSoftBreaks(text: string): number {
     let count = 0;
-    
+
     console.log('countSoftBreaks - テキスト長:', text.length);
     console.log('countSoftBreaks - ソフト改行文字設定:', this.config.softBreakChars.map(char => `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`));
-    
+
     for (const softBreakChar of this.config.softBreakChars) {
       const escapedChar = softBreakChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escapedChar, 'g');
@@ -295,7 +295,7 @@ class TextAnalyzer {
       console.log(`countSoftBreaks - "${JSON.stringify(softBreakChar)}" (${escapedChar}) 検出数:`, occurrences);
       count += occurrences;
     }
-    
+
     console.log('countSoftBreaks - 合計:', count);
     return count;
   }
@@ -303,29 +303,29 @@ class TextAnalyzer {
   // 自動改行をシミュレートして実際の表示行を取得
   private simulateWordWrap(text: string, containerWidth: number, fontSize: number): string[] {
     const lines: string[] = [];
-    
+
     // 通常改行とソフト改行の両方で分割
     const allBreakChars = ['\n', ...this.config.softBreakChars];
     const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
     console.log('Word wrap - 改行文字:', allBreakChars.map(char => `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`));
     console.log('Word wrap - 分割パターン:', breakPattern);
-    
+
     const paragraphs = text.split(breakPattern);
     console.log('Word wrap - 分割結果:', paragraphs.length, '段落');
-    
+
     for (const paragraph of paragraphs) {
       if (paragraph.trim() === '') {
         lines.push('');
         continue;
       }
-      
+
       const words = paragraph.split(/(\s+)/); // スペースも保持
       let currentLine = '';
-      
+
       for (const word of words) {
         const testLine = currentLine + word;
         const estimatedWidth = this.estimateTextWidth(testLine, fontSize);
-        
+
         if (estimatedWidth <= containerWidth || currentLine === '') {
           currentLine = testLine;
         } else {
@@ -334,13 +334,13 @@ class TextAnalyzer {
           currentLine = word;
         }
       }
-      
+
       // 最後の行を追加
       if (currentLine !== '') {
         lines.push(currentLine);
       }
     }
-    
+
     return lines;
   }
 
@@ -350,7 +350,7 @@ class TextAnalyzer {
     const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
     const lines = text.split(breakPattern);
     const softBreakLines: number[] = [];
-    
+
     lines.forEach((line, index) => {
       for (const softBreakChar of this.config.softBreakChars) {
         if (line.indexOf(softBreakChar) !== -1) {
@@ -359,7 +359,7 @@ class TextAnalyzer {
         }
       }
     });
-    
+
     return softBreakLines;
   }
 
@@ -369,32 +369,32 @@ class TextAnalyzer {
     }
 
     const changes: string[] = [];
-    
+
     issues.forEach(issue => {
       switch (issue.type) {
         case 'auto-width':
-          changes.push('Convert to auto-height and remove line breaks');
+          changes.push('幅の設定＆端の改行');
           break;
         case 'edge-breaking':
-          changes.push('Remove edge-breaking line breaks');
+          changes.push('端の改行');
           break;
         case 'soft-break':
-          changes.push('Convert soft breaks to hard breaks');
+          changes.push('ソフト改行');
           break;
       }
     });
-    
+
     return changes.join(', ');
   }
 
   findTextNodes(ignoreMinCharacters: boolean = false): TextNode[] {
     // 選択されたノードがある場合、その中のテキストノードを検索
     const selection = figma.currentPage.selection;
-    
+
     if (selection.length > 0) {
       console.log(`選択されたノード: ${selection.length}個`);
       const textNodes: TextNode[] = [];
-      
+
       for (const selectedNode of selection) {
         if (selectedNode.type === 'TEXT') {
           // 選択されたノード自体がテキストノードの場合
@@ -409,29 +409,29 @@ class TextAnalyzer {
               if (node.type !== 'TEXT') return false;
               const textNode = node as TextNode;
               const minCharCheck = ignoreMinCharacters || textNode.characters.length >= this.config.minCharacters;
-              return !textNode.locked && 
-                     textNode.visible &&
-                     minCharCheck;
+              return !textNode.locked &&
+                textNode.visible &&
+                minCharCheck;
             }) as TextNode[];
-            
+
             textNodes.push(...childTextNodes);
           }
         }
       }
-      
+
       console.log(`選択範囲内のテキストノード: ${textNodes.length}個`);
       return textNodes;
     }
-    
+
     // 選択がない場合は現在のページ全体を検索
     console.log('選択なし - ページ全体を検索');
     return figma.currentPage.findAll(node => {
       if (node.type !== 'TEXT') return false;
       const textNode = node as TextNode;
       const minCharCheck = ignoreMinCharacters || textNode.characters.length >= this.config.minCharacters;
-      return !textNode.locked && 
-             textNode.visible &&
-             minCharCheck;
+      return !textNode.locked &&
+        textNode.visible &&
+        minCharCheck;
     }) as TextNode[];
   }
 
@@ -492,29 +492,29 @@ class TextProcessor {
       console.log(`テキストが短すぎます (${text.length}文字 < ${this.config.minCharacters}文字) - 処理をスキップ`);
       return text; // そのまま返す
     }
-    
+
     // 通常改行とソフト改行の両方で分割
     const allBreakChars = ['\n', ...this.config.softBreakChars];
     const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
     const lines = text.split(breakPattern);
     console.log(`改行除去処理 - 分割結果: ${lines.length}行`);
-    
+
     const shouldBreakAfter: boolean[] = [];
-    
+
     // 各行について、その後で改行すべきかを判定
     for (let i = 0; i < lines.length; i++) {
       const currentLine = lines[i];
       const currentTrimmed = currentLine.trim();
-      
+
       console.log(`行${i + 1}評価: "${currentTrimmed}"`);
-      
+
       // 最後の行は常にbreak
       if (i === lines.length - 1) {
         shouldBreakAfter[i] = true;
         console.log(`→ 最後の行: break`);
         continue;
       }
-      
+
       // 句読点で終わる場合はbreak
       if (/[。．！？]$/.test(currentTrimmed)) {
         shouldBreakAfter[i] = true;
@@ -523,7 +523,7 @@ class TextProcessor {
         // 幅判定を追加：コンテナ幅に対する比率が閾値未満の場合は改行を保持
         const estimatedWidth = this.estimateTextWidth(currentTrimmed, fontSize);
         const widthRatio = estimatedWidth / containerWidth;
-        
+
         if (widthRatio < this.config.lineBreakThreshold) {
           shouldBreakAfter[i] = true;
           console.log(`→ 幅が閾値未満 (${widthRatio.toFixed(2)} < ${this.config.lineBreakThreshold}): break`);
@@ -533,18 +533,18 @@ class TextProcessor {
         }
       }
     }
-    
+
     // 判定結果に基づいて行を結合
     const result: string[] = [];
     let currentCombined = '';
-    
+
     for (let i = 0; i < lines.length; i++) {
       if (currentCombined === '') {
         currentCombined = lines[i];
       } else {
         currentCombined = this.combineLines(currentCombined, lines[i]);
       }
-      
+
       // この行の後でbreakする場合
       if (shouldBreakAfter[i]) {
         console.log(`結合完了: "${currentCombined.trim()}"`);
@@ -552,14 +552,14 @@ class TextProcessor {
         currentCombined = '';
       }
     }
-    
+
     return result.join('\n');
   }
 
   private shouldRemoveLineBreak(currentLine: string, nextLine: string, containerWidth: number, fontSize: number = 16): boolean {
     const currentTrimmed = currentLine.trim();
     const nextTrimmed = nextLine.trim();
-    
+
     // 空行の場合は保持
     if (currentTrimmed === '' || nextTrimmed === '') {
       return false;
@@ -568,19 +568,19 @@ class TextProcessor {
     // より正確な文字幅推定を使用
     const estimatedWidth = this.estimateTextWidth(currentTrimmed, fontSize);
     const widthRatio = estimatedWidth / containerWidth;
-    
+
     console.log(`幅判定: "${currentTrimmed.substring(0, 20)}..." (${currentTrimmed.length}文字) 
       フォント:${fontSize}px 推定幅:${estimatedWidth.toFixed(0)}px コンテナ:${containerWidth}px 
       比率:${widthRatio.toFixed(2)} 閾値:${this.config.lineBreakThreshold} 
       結果:${widthRatio >= this.config.lineBreakThreshold ? '結合対象' : '保持'}`);
-    
+
     if (widthRatio < this.config.lineBreakThreshold) {
       console.log(`判定結果: 改行保持 (幅が閾値未満)`);
       return false;
     }
 
     // === 例外条件（改行を保持する場合）===
-    
+
     // 1. 次行が箇条書きの場合は保持
     if (this.isBulletPoint(nextTrimmed)) {
       return false;
@@ -588,7 +588,7 @@ class TextProcessor {
 
 
     console.log("currentTrimmed:", currentTrimmed);
-      console.log("句読点で終わる？:",/[。．！？]$/.test(currentTrimmed));
+    console.log("句読点で終わる？:", /[。．！？]$/.test(currentTrimmed));
 
     // 2. 現在行が句読点で終わる場合（文の終わり）は改行を保持
     if (/[。．！？]$/.test(currentTrimmed)) {
@@ -609,20 +609,20 @@ class TextProcessor {
   private combineLines(line1: string, line2: string): string {
     const trimmed1 = line1.replace(/\s+$/, '');
     const trimmed2 = line2.replace(/^\s+/, '');
-    
+
     // 空行の場合はそのまま結合
     if (!trimmed1 || !trimmed2) {
       return trimmed1 + trimmed2;
     }
-    
+
     const line1End = trimmed1.slice(-1);
     const line2Start = trimmed2.slice(0, 1);
-    
+
     // 日本語文字同士の場合はスペースなしで結合
     if (this.isJapanese(line1End) && this.isJapanese(line2Start)) {
       return trimmed1 + trimmed2;
     }
-    
+
     // その他の場合はスペースを入れて結合
     return trimmed1 + ' ' + trimmed2;
   }
@@ -630,7 +630,7 @@ class TextProcessor {
   private isJapanese(char: string): boolean {
     if (!char) return false;
     const code = char.charCodeAt(0);
-    
+
     return (
       (code >= 0x3040 && code <= 0x309F) ||
       (code >= 0x30A0 && code <= 0x30FF) ||
@@ -648,7 +648,7 @@ class TextProcessor {
       /^[-*+]/,
       /^[①-⑳]/
     ];
-    
+
     return bulletPatterns.some(pattern => pattern.test(line));
   }
 
@@ -657,28 +657,28 @@ class TextProcessor {
     if (line.length > 50) return false;
     if (/^[A-Z\s]{3,}$/.test(line)) return true;
     if (/^[\d]+[\.\)]\s/.test(line)) return true;
-    
+
     return false;
   }
 
   private convertSoftBreaksToHard(text: string): string {
     let result = text;
-    
+
     for (const softBreakChar of this.config.softBreakChars) {
       result = result.replace(new RegExp(softBreakChar, 'g'), '\n');
     }
-    
+
     return result;
   }
 
 
   private estimateTextWidth(text: string, fontSize: number): number {
     let totalWidth = 0;
-    
+
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       const charCode = char.charCodeAt(0);
-      
+
       // 文字種別による幅の推定（実測値 878px/55文字/16px ≈ 0.998 に基づく）
       const baseMultiplier = this.config.fontWidthMultiplier || 1.0;
       if (this.isFullWidthCharacter(charCode)) {
@@ -692,7 +692,7 @@ class TextProcessor {
         totalWidth += fontSize * (baseMultiplier * 0.8);
       }
     }
-    
+
     return totalWidth;
   }
 
@@ -740,7 +740,7 @@ class FontManager {
 
   private async loadFont(fontName: FontName): Promise<void> {
     const fontKey = `${fontName.family}-${fontName.style}`;
-    
+
     if (this.loadedFonts.has(fontKey)) {
       return;
     }
@@ -850,11 +850,11 @@ class BatchProcessor {
         }
 
         const chunk = nodes.slice(i, i + CHUNK_SIZE);
-        
+
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
           const currentIndex = i + j;
-          
+
           if (this.isCancelled) {
             break;
           }
@@ -925,11 +925,11 @@ class BatchProcessor {
         }
 
         const chunk = processable.slice(i, i + CHUNK_SIZE);
-        
+
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
           const currentIndex = i + j;
-          
+
           if (this.isCancelled) {
             break;
           }
@@ -989,8 +989,9 @@ class BatchProcessor {
     onProgress?: (progress: ProgressUpdate) => void
   ): Promise<TextAnalysisResult[]> {
     const allNodes = this.analyzer.findTextNodes();
-    
+
     if (allNodes.length === 0) {
+      figma.notify('現在のページにテキストノードが見つかりません', { error: true });
       throw new Error('No text nodes found in current page');
     }
 
@@ -1006,7 +1007,7 @@ class BatchProcessor {
   ): Promise<ProcessingResult> {
     try {
       const { processable, issues } = await this.fontManager.validateNodesForProcessing([node]);
-      
+
       if (processable.length === 0) {
         return {
           node,
@@ -1022,7 +1023,7 @@ class BatchProcessor {
         if (forceChanges.removeLineBreaks) {
           const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
           processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize, true);
-          
+
           // auto-width要素は自動的にauto-heightに変換
           if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
             console.log('auto-width要素をauto-heightに変換');
@@ -1057,7 +1058,7 @@ class BatchProcessor {
       }
 
       const analysisResult = await this.analyzer.analyzeTextNode(node);
-      
+
       if (analysisResult.issues.length === 0) {
         return {
           node,
@@ -1101,7 +1102,7 @@ class BatchProcessor {
   } {
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
-    
+
     const errorSummary: { [key: string]: number } = {};
     results.filter(r => !r.success).forEach(r => {
       const errorType = r.error || 'Unknown error';
@@ -1134,8 +1135,8 @@ const DEFAULT_CONFIG: ProcessingConfig = {
 };
 
 // Initialize plugin
-figma.showUI(__html__, { 
-  width: 320, 
+figma.showUI(__html__, {
+  width: 320,
   height: 600,
   title: 'Line Break Cleaner'
 });
@@ -1185,7 +1186,7 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   console.log('=== スキャン開始 ===');
   console.log('設定:', config);
   console.log('現在処理中:', isProcessing);
-  
+
   // 選択状況を表示
   const selection = figma.currentPage.selection;
   if (selection.length > 0) {
@@ -1196,42 +1197,42 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   } else {
     console.log('ページ全体をスキャン');
   }
-  
+
   if (isProcessing) {
     console.log('既にスキャン中のため処理をスキップ');
     return;
   }
-  
+
   isProcessing = true;
   currentProcessor = new BatchProcessor(config);
   console.log('スキャン処理開始');
-  
+
   try {
     await saveConfig(config);
     const results = await currentProcessor.scanCurrentPage(onProgress);
-    
+
     // スキャンしたノードIDを記録
     scannedNodeIds.clear();
     results.forEach(result => {
       scannedNodeIds.add(result.node.id);
     });
-    
+
     console.log('スキャン完了:', results.length, '件');
     // 選択範囲の情報を含めて結果を送信
     const selection = figma.currentPage.selection;
-    const scanInfo = selection.length > 0 
-      ? `選択範囲内 (${selection.length}個のノード)` 
+    const scanInfo = selection.length > 0
+      ? `選択範囲内 (${selection.length}個のノード)`
       : 'ページ全体';
-    
+
     sendToUI({
       type: 'scan-complete',
       results: results,
       scanInfo: scanInfo
     });
-    
+
     // スキャン完了後、現在の選択状態を同期
     handleGetCurrentSelection();
-    
+
   } catch (error) {
     console.log('スキャンエラー:', error);
     sendToUI({
@@ -1249,23 +1250,23 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
   console.log('受信した結果数:', results.length);
   console.log('現在処理中:', isProcessing);
   console.log('プロセッサ存在:', !!currentProcessor);
-  
+
   if (isProcessing || !currentProcessor) {
     console.log('処理をスキップ - 既に処理中またはプロセッサなし');
     return;
   }
-  
+
   isProcessing = true;
   console.log('処理開始');
-  
+
   try {
     const processResults = await currentProcessor.processNodes(results, onProgress);
-    
+
     sendToUI({
       type: 'processing-complete',
       results: processResults
     });
-    
+
     const stats = currentProcessor.generateStatistics(processResults);
     if (stats.failed > 0) {
       sendToUI({
@@ -1273,7 +1274,7 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
         message: `${stats.failed} nodes failed to process. Check for missing fonts or locked layers.`
       });
     }
-    
+
   } catch (error) {
     sendToUI({
       type: 'error',
@@ -1287,24 +1288,25 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
 // Handle apply selected operation
 async function handleApplySelected(config: ProcessingConfig, options: any): Promise<void> {
   if (isProcessing) return;
-  
+
   isProcessing = true;
   currentProcessor = new BatchProcessor(config);
-  
+
   try {
     const selectedNodes = figma.currentPage.selection.filter(
       node => node.type === 'TEXT'
     ) as TextNode[];
-    
+
     if (selectedNodes.length === 0) {
-      throw new Error('No text nodes selected');
+      figma.notify('テキストノードが選択されていません', { error: true });
+      return;
     }
-    
+
     const processResults: ProcessingResult[] = [];
-    
+
     for (let i = 0; i < selectedNodes.length; i++) {
       const node = selectedNodes[i];
-      
+
       onProgress({
         current: i + 1,
         total: selectedNodes.length,
@@ -1312,20 +1314,32 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
         progress: Math.round(((i + 1) / selectedNodes.length) * 100),
         message: `Processing: ${node.name}`
       });
-      
+
       const result = await currentProcessor.processIndividualNode(node, {
         removeLineBreaks: options.removeLineBreaks,
         convertSoftBreaks: options.convertSoftBreaks
       });
-      
+
       processResults.push(result);
     }
-    
+
+    // 成功メッセージを表示
+    const successCount = processResults.filter(r => r.success).length;
+    const failCount = processResults.filter(r => !r.success).length;
+
+    if (successCount > 0) {
+      figma.notify(`${successCount}個のテキストノードを処理しました`, { timeout: 3000 });
+    }
+
+    if (failCount > 0) {
+      figma.notify(`${failCount}個のノードで処理に失敗しました`, { error: true });
+    }
+
     sendToUI({
       type: 'processing-complete',
       results: processResults
     });
-    
+
   } catch (error) {
     sendToUI({
       type: 'error',
@@ -1340,10 +1354,10 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
 async function handleSelectNodes(nodeIds: string[]): Promise<void> {
   try {
     console.log('選択するノードID:', nodeIds);
-    
+
     // ノードIDから実際のノードオブジェクトを取得
     const nodesToSelect: SceneNode[] = [];
-    
+
     for (const nodeId of nodeIds) {
       try {
         const node = await figma.getNodeByIdAsync(nodeId);
@@ -1357,16 +1371,16 @@ async function handleSelectNodes(nodeIds: string[]): Promise<void> {
         console.warn('ノードが見つからない:', nodeId, nodeError);
       }
     }
-    
+
     // Figmaで選択（空の配列でも実行して選択解除）
     figma.currentPage.selection = nodesToSelect;
-    
+
     if (nodesToSelect.length > 0) {
       console.log(`${nodesToSelect.length}個のノードを選択しました`);
     } else {
       console.log('選択を解除しました');
     }
-    
+
   } catch (error) {
     console.error('ノード選択エラー:', error);
   }
@@ -1378,7 +1392,7 @@ function handleGetCurrentSelection(): void {
   const selectedNodeIds = selection
     .filter(node => node.type === 'TEXT' && scannedNodeIds.has(node.id))
     .map(node => node.id);
-  
+
   // スキャン結果があるときは常にUIに通知（選択解除も含む）
   if (scannedNodeIds.size > 0) {
     sendToUI({
@@ -1391,7 +1405,7 @@ function handleGetCurrentSelection(): void {
 function handleGetScanMode(): void {
   try {
     const selection = figma.currentPage.selection;
-    
+
     if (selection.length === 0) {
       sendToUI({
         type: 'scan-mode-info',
@@ -1410,12 +1424,12 @@ function handleGetScanMode(): void {
           default: return node.type;
         }
       });
-      
+
       const uniqueTypes = [...new Set(nodeTypes)];
-      const typeText = uniqueTypes.length === 1 
-        ? uniqueTypes[0] 
+      const typeText = uniqueTypes.length === 1
+        ? uniqueTypes[0]
         : '複数タイプ';
-      
+
       sendToUI({
         type: 'scan-mode-info',
         mode: '選択範囲内',
@@ -1434,17 +1448,17 @@ function handleGetScanMode(): void {
 
 function handleClearResults(): void {
   console.log('=== 検出結果クリア ===');
-  
+
   // スキャンしたノードIDをクリア
   scannedNodeIds.clear();
-  
+
   // 処理状態をリセット
   isProcessing = false;
   currentProcessor = null;
-  
+
   // Figmaの選択もクリア
   figma.currentPage.selection = [];
-  
+
   console.log('検出結果がクリアされました');
 }
 
@@ -1453,18 +1467,18 @@ function handleCancel(): void {
   console.log('=== キャンセル要求 ===');
   console.log('現在処理中:', isProcessing);
   console.log('プロセッサ存在:', !!currentProcessor);
-  
+
   if (currentProcessor) {
     console.log('スキャン処理をキャンセル中...');
     currentProcessor.cancel();
   }
-  
+
   isProcessing = false;
-  
+
   sendToUI({
     type: 'cancelled'
   });
-  
+
   console.log('キャンセル完了');
 }
 
@@ -1473,32 +1487,32 @@ figma.ui.onmessage = async (msg: UIMessage) => {
   console.log('=== 受信メッセージ ===');
   console.log('タイプ:', msg.type);
   console.log('メッセージ内容:', msg);
-  
+
   try {
     switch (msg.type) {
       case 'scan':
         console.log('スキャン処理開始');
         await handleScan(msg.config || DEFAULT_CONFIG);
         break;
-        
+
       case 'apply-all':
         console.log('一括適用処理開始');
         await handleApplyAll(msg.results);
         break;
-        
+
       case 'apply-selected':
         await handleApplySelected(msg.config || DEFAULT_CONFIG, msg.options);
         break;
-        
+
       case 'select-nodes':
         console.log('ノード選択要求:', msg.nodeIds);
         await handleSelectNodes(msg.nodeIds);
         break;
-        
+
       case 'get-current-selection':
         handleGetCurrentSelection();
         break;
-        
+
       case 'load-config':
         const currentConfig = await loadConfig();
         sendToUI({
@@ -1506,19 +1520,19 @@ figma.ui.onmessage = async (msg: UIMessage) => {
           config: currentConfig
         });
         break;
-        
+
       case 'get-scan-mode':
         handleGetScanMode();
         break;
-        
+
       case 'clear-results':
         handleClearResults();
         break;
-        
+
       case 'cancel':
         handleCancel();
         break;
-        
+
       default:
         console.warn('Unknown message type:', msg.type);
     }
