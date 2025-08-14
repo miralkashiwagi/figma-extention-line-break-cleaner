@@ -1531,6 +1531,9 @@ figma.on('selectionchange', () => {
   handleGetScanMode();
 });
 
+// デバッグ時はストレージをクリア
+// figma.clientStorage.deleteAsync('line-break-cleaner-config');
+
 // Initialize with saved config when plugin loads
 loadConfig().then(() => {
   // Plugin is ready

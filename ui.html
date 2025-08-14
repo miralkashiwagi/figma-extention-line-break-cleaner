@@ -747,13 +747,13 @@
 
     // 設定をUIに反映
     function applyConfigToUI(config) {
-      document.getElementById('min-chars').value = config.minCharacters || 20;
-      document.getElementById('line-break-threshold').value = config.lineBreakThreshold || 0.8;
-      document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier || 1.0;
+      // config は既に code.ts の loadConfig() で DEFAULT_CONFIG とマージ済み
+      document.getElementById('min-chars').value = config.minCharacters;
+      document.getElementById('line-break-threshold').value = config.lineBreakThreshold;
+      document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier;
 
-      const softBreakChars = config.softBreakChars || ['\u2028'];
       // ソフト改行文字を適切に表示（改行で区切らない）
-      document.getElementById('soft-break-chars').value = softBreakChars.join('');
+      document.getElementById('soft-break-chars').value = config.softBreakChars.join('');
     }
 
     // 初期設定を適用
