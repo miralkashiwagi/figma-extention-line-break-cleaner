@@ -1,40 +1,32 @@
-Below are the steps to get your plugin running. You can also find instructions at:
+# Line Break Cleaner
 
-  https://www.figma.com/plugin-docs/plugin-quickstart-guide/
+テキストの不要な改行を自動検出・削除するFigmaプラグインです。
 
-This plugin template uses Typescript and NPM, two standard tools in creating JavaScript applications.
+## 機能
 
-First, download Node.js which comes with NPM. This will allow you to install TypeScript and other
-libraries. You can find the download link here:
+- **自動幅テキスト処理**: Auto-WidthテキストをAuto-Heightに変換し、適切に改行を削除
+- **視覚的改行検出**: 文字幅計算により実際の改行位置を検出
+- **ソフト改行変換**: LSEP（`\u2028`）などを通常の改行に変換
+- **日英混在対応**: 句読点（。！？）や箇条書きを保護
+- **バッチ処理**: 大量のテキストノードを効率的に処理
 
-  https://nodejs.org/en/download/
+## 使い方
 
-Next, install TypeScript using the command:
+1. テキストノードを選択（または全ページ対象スキャンしてから、選択）
+2. 選択したテキストをクリーニング
 
-  npm install -g typescript
+## 開発
 
-Finally, in the directory of your plugin, get the latest type definitions for the plugin API by running:
+```bash
+npm install
+npm run watch  # 開発用
+npm run build  # ビルド
+```
 
-  npm install --save-dev @figma/plugin-typings
+## 設定
 
-If you are familiar with JavaScript, TypeScript will look very familiar. In fact, valid JavaScript code
-is already valid Typescript code.
-
-TypeScript adds type annotations to variables. This allows code editors such as Visual Studio Code
-to provide information about the Figma API while you are writing code, as well as help catch bugs
-you previously didn't notice.
-
-For more information, visit https://www.typescriptlang.org/
-
-Using TypeScript requires a compiler to convert TypeScript (code.ts) into JavaScript (code.js)
-for the browser to run.
-
-We recommend writing TypeScript code using Visual Studio code:
-
-1. Download Visual Studio Code if you haven't already: https://code.visualstudio.com/.
-2. Open this directory in Visual Studio Code.
-3. Compile TypeScript to JavaScript: Run the "Terminal > Run Build Task..." menu item,
-    then select "npm: watch". You will have to do this again every time
-    you reopen Visual Studio Code.
-
-That's it! Visual Studio Code will regenerate the JavaScript file every time you save.
+「詳細設定」タブで調整可能：
+- 最小文字数
+- 改行処理閾値
+- フォント幅係数
+- ソフト改行文字
