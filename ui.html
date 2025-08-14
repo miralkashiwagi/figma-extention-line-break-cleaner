@@ -268,7 +268,7 @@
         <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05" />
         
         <label for="soft-break-chars">ソフト改行文字 (1行1文字):</label>
-        <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力">\u2028</textarea>
+        <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力"> </textarea>
 
         <div class="checkbox-group">
           <label><input type="checkbox" id="detect-edge-breaking" checked> 右端改行検出</label>
@@ -298,9 +298,39 @@
     // Configuration management
     function getConfig() {
       const softBreakText = document.getElementById('soft-break-chars').value;
-      const softBreakChars = softBreakText.split('\n')
+      
+      // ソフト改行文字の特別処理
+      let softBreakChars = [];
+      
+      // テキストエリアの値を文字単位で処理
+      for (let i = 0; i < softBreakText.length; i++) {
+        const char = softBreakText[i];
+        const code = char.charCodeAt(0);
+        
+        // ソフト改行文字（LSEP, PSEP）や特殊文字を検出
+        if (code === 8232 || code === 8233 || code === 8203 || code === 65279) {
+          if (softBreakChars.indexOf(char) === -1) {
+            softBreakChars.push(char);
+          }
+        }
+      }
+      
+      // 通常の改行で分割して追加の文字を処理
+      const lines = softBreakText.split(/[\r\n]+/)
         .map(line => line.trim())
         .filter(line => line.length > 0);
+      
+      for (const line of lines) {
+        // 通常の文字列として入力された場合
+        if (line.length > 0 && softBreakChars.indexOf(line) === -1) {
+          softBreakChars.push(line);
+        }
+      }
+      
+      // デフォルトのソフト改行文字を設定（空の場合）
+      if (softBreakChars.length === 0) {
+        softBreakChars = ['\u2028'];
+      }
       
       return {
         minCharacters: parseInt(document.getElementById('min-chars').value),
@@ -471,6 +501,7 @@
     // Event listeners
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
+      console.log('UI送信設定:', config);
       setProcessingState(true);
       
       parent.postMessage({ 
@@ -529,9 +560,36 @@
         case 'selection-changed':
           updateUISelection(msg.selectedNodeIds);
           break;
+          
+        case 'config-loaded':
+          applyConfigToUI(msg.config);
+          break;
       }
     };
 
+    // 設定をUIに反映
+    function applyConfigToUI(config) {
+      document.getElementById('min-chars').value = config.minCharacters || 20;
+      document.getElementById('line-break-threshold').value = config.lineBreakThreshold || 0.8;
+      document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier || 1.0;
+      
+      const softBreakChars = config.softBreakChars || ['\u2028'];
+      // ソフト改行文字を適切に表示（改行で区切らない）
+      document.getElementById('soft-break-chars').value = softBreakChars.join('');
+      
+      const enabledDetections = config.enabledDetections || ['auto-width', 'edge-breaking', 'soft-break'];
+      document.getElementById('detect-edge-breaking').checked = enabledDetections.includes('edge-breaking');
+      document.getElementById('detect-soft-break').checked = enabledDetections.includes('soft-break');
+    }
+    
+    // 初期設定を適用
+    function initializeUI() {
+      // デフォルトのソフト改行文字を設定
+      if (!document.getElementById('soft-break-chars').value.trim()) {
+        document.getElementById('soft-break-chars').value = '\u2028';
+      }
+    }
+    
     // UIの選択状態を更新
     function updateUISelection(figmaSelectedNodeIds) {
       // 現在のUI選択をクリア
@@ -561,6 +619,14 @@
     
     // Initialize
     setProcessingState(false);
+    initializeUI();
+    
+    // Load saved configuration on startup
+    parent.postMessage({ 
+      pluginMessage: { 
+        type: 'load-config'
+      } 
+    }, '*');
   </script>
 </body>
 </html>

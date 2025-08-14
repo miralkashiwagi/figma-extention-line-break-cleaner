@@ -181,8 +181,12 @@ class TextAnalyzer {
       const currentText = node.characters;
       const paragraphSpacing = node.paragraphSpacing;
       
+      console.log('ソフト改行検出 - paragraphSpacing:', paragraphSpacing);
+      console.log('ソフト改行検出 - テキスト内容:', JSON.stringify(currentText));
+      
       if (paragraphSpacing === 0) {
         const softBreakCount = this.countSoftBreaks(currentText);
+        console.log('ソフト改行検出 - カウント:', softBreakCount);
         
         if (softBreakCount > 0) {
           issues.push({
@@ -192,6 +196,8 @@ class TextAnalyzer {
             lineNumbers: this.getSoftBreakLines(currentText)
           });
         }
+      } else {
+        console.log('ソフト改行検出 - スキップ (paragraphSpacing > 0)');
       }
     } catch (error) {
       console.warn('Could not analyze soft breaks for node:', node.name);
@@ -279,18 +285,33 @@ class TextAnalyzer {
   private countSoftBreaks(text: string): number {
     let count = 0;
     
+    console.log('countSoftBreaks - テキスト長:', text.length);
+    console.log('countSoftBreaks - ソフト改行文字設定:', this.config.softBreakChars.map(char => `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`));
+    
     for (const softBreakChar of this.config.softBreakChars) {
-      const occurrences = (text.match(new RegExp(softBreakChar, 'g')) || []).length;
+      const escapedChar = softBreakChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedChar, 'g');
+      const occurrences = (text.match(regex) || []).length;
+      console.log(`countSoftBreaks - "${JSON.stringify(softBreakChar)}" (${escapedChar}) 検出数:`, occurrences);
       count += occurrences;
     }
     
+    console.log('countSoftBreaks - 合計:', count);
     return count;
   }
 
   // 自動改行をシミュレートして実際の表示行を取得
   private simulateWordWrap(text: string, containerWidth: number, fontSize: number): string[] {
     const lines: string[] = [];
-    const paragraphs = text.split('\n');
+    
+    // 通常改行とソフト改行の両方で分割
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+    console.log('Word wrap - 改行文字:', allBreakChars.map(char => `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`));
+    console.log('Word wrap - 分割パターン:', breakPattern);
+    
+    const paragraphs = text.split(breakPattern);
+    console.log('Word wrap - 分割結果:', paragraphs.length, '段落');
     
     for (const paragraph of paragraphs) {
       if (paragraph.trim() === '') {
@@ -433,7 +454,12 @@ class TextProcessor {
       return text; // そのまま返す
     }
     
-    const lines = text.split('\n');
+    // 通常改行とソフト改行の両方で分割
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+    const lines = text.split(breakPattern);
+    console.log(`改行除去処理 - 分割結果: ${lines.length}行`);
+    
     const shouldBreakAfter: boolean[] = [];
     
     // 各行について、その後で改行すべきかを判定
@@ -455,8 +481,17 @@ class TextProcessor {
         shouldBreakAfter[i] = true;
         console.log(`→ 句読点で終わる: break`);
       } else {
-        shouldBreakAfter[i] = false;
-        console.log(`→ 句読点なし: continue`);
+        // 幅判定を追加：コンテナ幅に対する比率が閾値未満の場合は改行を保持
+        const estimatedWidth = this.estimateTextWidth(currentTrimmed, fontSize);
+        const widthRatio = estimatedWidth / containerWidth;
+        
+        if (widthRatio < this.config.lineBreakThreshold) {
+          shouldBreakAfter[i] = true;
+          console.log(`→ 幅が閾値未満 (${widthRatio.toFixed(2)} < ${this.config.lineBreakThreshold}): break`);
+        } else {
+          shouldBreakAfter[i] = false;
+          console.log(`→ 幅が閾値以上 (${widthRatio.toFixed(2)} >= ${this.config.lineBreakThreshold}): continue`);
+        }
       }
     }
     
@@ -1345,6 +1380,14 @@ figma.ui.onmessage = async (msg: UIMessage) => {
         
       case 'get-current-selection':
         handleGetCurrentSelection();
+        break;
+        
+      case 'load-config':
+        const currentConfig = await loadConfig();
+        sendToUI({
+          type: 'config-loaded',
+          config: currentConfig
+        });
         break;
         
       case 'cancel':
