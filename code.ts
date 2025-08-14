@@ -388,6 +388,41 @@ class TextAnalyzer {
   }
 
   findTextNodes(): TextNode[] {
+    // 選択されたノードがある場合、その中のテキストノードを検索
+    const selection = figma.currentPage.selection;
+    
+    if (selection.length > 0) {
+      console.log(`選択されたノード: ${selection.length}個`);
+      const textNodes: TextNode[] = [];
+      
+      for (const selectedNode of selection) {
+        if (selectedNode.type === 'TEXT') {
+          // 選択されたノード自体がテキストノードの場合
+          if (!selectedNode.locked && selectedNode.visible && 
+              selectedNode.characters.length >= this.config.minCharacters) {
+            textNodes.push(selectedNode);
+          }
+        } else {
+          // 選択されたノード内のテキストノードを検索
+          if ('findAll' in selectedNode) {
+            const childTextNodes = selectedNode.findAll((node: SceneNode) => {
+              return node.type === 'TEXT' && 
+                     !node.locked && 
+                     node.visible &&
+                     (node as TextNode).characters.length >= this.config.minCharacters;
+            }) as TextNode[];
+            
+            textNodes.push(...childTextNodes);
+          }
+        }
+      }
+      
+      console.log(`選択範囲内のテキストノード: ${textNodes.length}個`);
+      return textNodes;
+    }
+    
+    // 選択がない場合は現在のページ全体を検索
+    console.log('選択なし - ページ全体を検索');
     return figma.currentPage.findAll(node => {
       return node.type === 'TEXT' && 
              !node.locked && 
@@ -1147,6 +1182,17 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   console.log('設定:', config);
   console.log('現在処理中:', isProcessing);
   
+  // 選択状況を表示
+  const selection = figma.currentPage.selection;
+  if (selection.length > 0) {
+    console.log(`選択範囲でスキャン: ${selection.length}個のノードが選択されています`);
+    selection.forEach((node, index) => {
+      console.log(`  ${index + 1}. ${node.name} (${node.type})`);
+    });
+  } else {
+    console.log('ページ全体をスキャン');
+  }
+  
   if (isProcessing) {
     console.log('既にスキャン中のため処理をスキップ');
     return;
@@ -1167,9 +1213,16 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
     });
     
     console.log('スキャン完了:', results.length, '件');
+    // 選択範囲の情報を含めて結果を送信
+    const selection = figma.currentPage.selection;
+    const scanInfo = selection.length > 0 
+      ? `選択範囲内 (${selection.length}個のノード)` 
+      : 'ページ全体';
+    
     sendToUI({
       type: 'scan-complete',
-      results: results
+      results: results,
+      scanInfo: scanInfo
     });
     
     // スキャン完了後、現在の選択状態を同期
@@ -1331,6 +1384,50 @@ function handleGetCurrentSelection(): void {
   }
 }
 
+function handleGetScanMode(): void {
+  try {
+    const selection = figma.currentPage.selection;
+    
+    if (selection.length === 0) {
+      sendToUI({
+        type: 'scan-mode-info',
+        mode: 'ページ全体',
+        details: null
+      });
+    } else {
+      const nodeTypes = selection.map(node => {
+        switch (node.type) {
+          case 'FRAME': return 'フレーム';
+          case 'SECTION': return 'セクション';
+          case 'GROUP': return 'グループ';
+          case 'TEXT': return 'テキスト';
+          case 'COMPONENT': return 'コンポーネント';
+          case 'INSTANCE': return 'インスタンス';
+          default: return node.type;
+        }
+      });
+      
+      const uniqueTypes = [...new Set(nodeTypes)];
+      const typeText = uniqueTypes.length === 1 
+        ? uniqueTypes[0] 
+        : '複数タイプ';
+      
+      sendToUI({
+        type: 'scan-mode-info',
+        mode: '選択範囲内',
+        details: `${selection.length}個の${typeText}`
+      });
+    }
+  } catch (error) {
+    console.error('スキャンモード取得エラー:', error);
+    sendToUI({
+      type: 'scan-mode-info',
+      mode: 'ページ全体',
+      details: null
+    });
+  }
+}
+
 // Handle cancel operation
 function handleCancel(): void {
   console.log('=== キャンセル要求 ===');
@@ -1388,6 +1485,10 @@ figma.ui.onmessage = async (msg: UIMessage) => {
           type: 'config-loaded',
           config: currentConfig
         });
+        break;
+        
+      case 'get-scan-mode':
+        handleGetScanMode();
         break;
         
       case 'cancel':

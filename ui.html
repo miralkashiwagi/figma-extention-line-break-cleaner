@@ -225,6 +225,7 @@
       <!-- Actions Section -->
       <div class="section">
         <h3>スキャン</h3>
+        <div id="scan-mode-info" class="info-message">スキャンモード: ページ全体</div>
         <button id="scan">スキャン実行</button>
       </div>
 
@@ -362,7 +363,7 @@
     }
 
 
-    function showResults(results) {
+    function showResults(results, scanInfo) {
       currentResults = results;
       selectedNodeIds.clear();
       
@@ -371,9 +372,10 @@
       const list = document.getElementById('results-list');
       
       const withIssues = results.filter(r => r.issues.length > 0);
+      const scanInfoText = scanInfo ? ` (${scanInfo})` : '';
       summary.innerHTML = `
         <div class="info-message">
-          ${withIssues.length}ノード検出
+          ${withIssues.length}ノード検出${scanInfoText}
         </div>
       `;
       
@@ -504,6 +506,12 @@
       console.log('UI送信設定:', config);
       setProcessingState(true);
       
+      // スキャン範囲の情報を表示
+      const container = document.getElementById('results-container');
+      const summary = document.getElementById('results-summary');
+      summary.innerHTML = '<div class="info-message">スキャン中...</div>';
+      container.style.display = 'block';
+      
       parent.postMessage({ 
         pluginMessage: { 
           type: 'scan',
@@ -545,7 +553,7 @@
       switch (msg.type) {
         case 'scan-complete':
           setProcessingState(false);
-          showResults(msg.results);
+          showResults(msg.results, msg.scanInfo);
           break;
           
         case 'error':
@@ -563,6 +571,10 @@
           
         case 'config-loaded':
           applyConfigToUI(msg.config);
+          break;
+          
+        case 'scan-mode-info':
+          updateScanModeDisplay(msg.mode, msg.details);
           break;
       }
     };
@@ -617,9 +629,27 @@
     }
     
     
+    // スキャンモード表示を更新
+    function updateScanModeInfo() {
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'get-scan-mode'
+        } 
+      }, '*');
+    }
+    
+    // スキャンモード表示を更新
+    function updateScanModeDisplay(mode, details) {
+      const scanModeInfo = document.getElementById('scan-mode-info');
+      if (scanModeInfo) {
+        scanModeInfo.innerHTML = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
+      }
+    }
+    
     // Initialize
     setProcessingState(false);
     initializeUI();
+    updateScanModeInfo();
     
     // Load saved configuration on startup
     parent.postMessage({ 
@@ -627,6 +657,9 @@
         type: 'load-config'
       } 
     }, '*');
+    
+    // 定期的にスキャンモードを更新（選択状況の変化を検知）
+    setInterval(updateScanModeInfo, 1000);
   </script>
 </body>
 </html>
