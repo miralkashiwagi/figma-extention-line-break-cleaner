@@ -1017,6 +1017,7 @@ figma.showUI(__html__, {
 // Global state
 let currentProcessor: BatchProcessor | null = null;
 let isProcessing = false;
+let scannedNodeIds: Set<string> = new Set();
 
 // Load saved configuration
 async function loadConfig(): Promise<ProcessingConfig> {
@@ -1055,21 +1056,40 @@ function onProgress(progress: any): void {
 
 // Handle scan operation
 async function handleScan(config: ProcessingConfig): Promise<void> {
-  if (isProcessing) return;
+  console.log('=== スキャン開始 ===');
+  console.log('設定:', config);
+  console.log('現在処理中:', isProcessing);
+  
+  if (isProcessing) {
+    console.log('既にスキャン中のため処理をスキップ');
+    return;
+  }
   
   isProcessing = true;
   currentProcessor = new BatchProcessor(config);
+  console.log('スキャン処理開始');
   
   try {
     await saveConfig(config);
     const results = await currentProcessor.scanCurrentPage(onProgress);
     
+    // スキャンしたノードIDを記録
+    scannedNodeIds.clear();
+    results.forEach(result => {
+      scannedNodeIds.add(result.node.id);
+    });
+    
+    console.log('スキャン完了:', results.length, '件');
     sendToUI({
       type: 'scan-complete',
       results: results
     });
     
+    // スキャン完了後、現在の選択状態を同期
+    handleGetCurrentSelection();
+    
   } catch (error) {
+    console.log('スキャンエラー:', error);
     sendToUI({
       type: 'error',
       message: error instanceof Error ? error.message : 'Scan failed'
@@ -1212,16 +1232,40 @@ async function handleSelectNodes(nodeIds: string[]): Promise<void> {
   }
 }
 
+// Get current selection (only for scanned nodes)
+function handleGetCurrentSelection(): void {
+  const selection = figma.currentPage.selection;
+  const selectedNodeIds = selection
+    .filter(node => node.type === 'TEXT' && scannedNodeIds.has(node.id))
+    .map(node => node.id);
+  
+  // スキャン結果のノードが選択されている場合のみUIに通知
+  if (selectedNodeIds.length > 0 || selection.some(node => scannedNodeIds.has(node.id))) {
+    sendToUI({
+      type: 'selection-changed',
+      selectedNodeIds: selectedNodeIds
+    });
+  }
+}
+
 // Handle cancel operation
 function handleCancel(): void {
+  console.log('=== キャンセル要求 ===');
+  console.log('現在処理中:', isProcessing);
+  console.log('プロセッサ存在:', !!currentProcessor);
+  
   if (currentProcessor) {
+    console.log('スキャン処理をキャンセル中...');
     currentProcessor.cancel();
   }
+  
   isProcessing = false;
   
   sendToUI({
     type: 'cancelled'
   });
+  
+  console.log('キャンセル完了');
 }
 
 // Message handler from UI
@@ -1251,6 +1295,10 @@ figma.ui.onmessage = async (msg: UIMessage) => {
         await handleSelectNodes(msg.nodeIds);
         break;
         
+      case 'get-current-selection':
+        handleGetCurrentSelection();
+        break;
+        
       case 'cancel':
         handleCancel();
         break;
@@ -1266,6 +1314,14 @@ figma.ui.onmessage = async (msg: UIMessage) => {
     isProcessing = false;
   }
 };
+
+// Selection change listener - only for scanned nodes
+figma.on('selectionchange', () => {
+  // スキャン結果があるときのみ選択状態を監視
+  if (scannedNodeIds.size > 0) {
+    handleGetCurrentSelection();
+  }
+});
 
 // Initialize with saved config when plugin loads
 loadConfig().then(config => {

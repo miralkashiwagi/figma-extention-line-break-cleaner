@@ -73,31 +73,6 @@
       background: #E5E7EB;
     }
     
-    .progress-container {
-      display: none;
-      margin: 12px 0;
-    }
-    
-    .progress-bar {
-      width: 100%;
-      height: 4px;
-      background: #E5E7EB;
-      border-radius: 2px;
-      overflow: hidden;
-      margin-bottom: 4px;
-    }
-    
-    .progress-fill {
-      height: 100%;
-      background: #18A0FB;
-      width: 0%;
-      transition: width 0.2s;
-    }
-    
-    .progress-text {
-      font-size: 10px;
-      color: #6B7280;
-    }
     
     .results-container {
       display: none;
@@ -251,16 +226,8 @@
       <div class="section">
         <h3>スキャン</h3>
         <button id="scan">スキャン実行</button>
-        <button id="cancel" class="secondary" disabled>キャンセル</button>
       </div>
 
-      <!-- Progress Section -->
-      <div class="progress-container" id="progress-container">
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
-        <div class="progress-text" id="progress-text">準備中...</div>
-      </div>
 
       <!-- Manual Tools Section -->
       <div class="section">
@@ -355,7 +322,6 @@
     function setProcessingState(processing) {
       isProcessing = processing;
       document.getElementById('scan').disabled = processing;
-      document.getElementById('cancel').disabled = !processing;
       document.getElementById('apply-selected').disabled = processing;
       
       // 選択関連ボタンの状態
@@ -363,14 +329,8 @@
       const selectNoneBtn = document.getElementById('select-none');
       if (selectAllBtn) selectAllBtn.disabled = processing || currentResults.length === 0;
       if (selectNoneBtn) selectNoneBtn.disabled = processing;
-      
-      document.getElementById('progress-container').style.display = processing ? 'block' : 'none';
     }
 
-    function updateProgress(progress, message) {
-      document.getElementById('progress-fill').style.width = progress + '%';
-      document.getElementById('progress-text').textContent = message;
-    }
 
     function showResults(results) {
       currentResults = results;
@@ -427,7 +387,6 @@
       });
       
       container.style.display = 'block';
-      setProcessingState(false);
     }
 
     function showError(message) {
@@ -460,6 +419,15 @@
         }, '*');
       }
     }
+    
+    // Figmaの選択変更をUIに反映
+    function syncSelectionFromFigma() {
+      parent.postMessage({
+        pluginMessage: {
+          type: 'get-current-selection'
+        }
+      }, '*');
+    }
 
     // すべて選択/解除機能
     function selectAllNodes() {
@@ -482,7 +450,6 @@
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
       setProcessingState(true);
-      updateProgress(0, 'スキャンを開始しています...');
       
       parent.postMessage({ 
         pluginMessage: { 
@@ -502,9 +469,6 @@
         removeLineBreaks: document.getElementById('manual-remove-breaks').checked
       };
       
-      setProcessingState(true);
-      updateProgress(0, '選択ノードを処理中...');
-      
       parent.postMessage({ 
         pluginMessage: { 
           type: 'apply-selected',
@@ -514,9 +478,6 @@
       }, '*');
     };
 
-    document.getElementById('cancel').onclick = () => {
-      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
-    };
 
     // Tab event listeners
     document.getElementById('tab-operations').onclick = () => switchTab('operations');
@@ -528,10 +489,6 @@
       if (!msg) return;
 
       switch (msg.type) {
-        case 'progress-update':
-          updateProgress(msg.progress, msg.message);
-          break;
-          
         case 'scan-complete':
           setProcessingState(false);
           showResults(msg.results);
@@ -546,13 +503,39 @@
           showWarning(msg.message);
           break;
           
-        case 'cancelled':
-          setProcessingState(false);
-          updateProgress(0, 'キャンセルされました');
+        case 'selection-changed':
+          updateUISelection(msg.selectedNodeIds);
           break;
       }
     };
 
+    // UIの選択状態を更新
+    function updateUISelection(figmaSelectedNodeIds) {
+      // 現在のUI選択をクリア
+      selectedNodeIds.clear();
+      document.querySelectorAll('.result-item').forEach(item => {
+        item.classList.remove('selected');
+        const checkbox = item.querySelector('.node-checkbox');
+        if (checkbox) {
+          checkbox.checked = false;
+        }
+      });
+      
+      // Figmaで選択されているノードがUI結果リストに含まれていればチェック
+      figmaSelectedNodeIds.forEach(nodeId => {
+        const resultItem = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (resultItem) {
+          selectedNodeIds.add(nodeId);
+          resultItem.classList.add('selected');
+          const checkbox = resultItem.querySelector('.node-checkbox');
+          if (checkbox) {
+            checkbox.checked = true;
+          }
+        }
+      });
+    }
+    
+    
     // Initialize
     setProcessingState(false);
   </script>
