@@ -382,6 +382,12 @@ class TextProcessor {
   }
 
   private removeLineBreaksJapanesePriority(text: string, containerWidth: number = 500, fontSize: number = 16): string {
+    // 最小文字数チェック
+    if (text.length < this.config.minCharacters) {
+      console.log(`テキストが短すぎます (${text.length}文字 < ${this.config.minCharacters}文字) - 処理をスキップ`);
+      return text; // そのまま返す
+    }
+    
     const lines = text.split('\n');
     const shouldBreakAfter: boolean[] = [];
     
