@@ -1,38 +1,44 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <style>
-    body { 
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
-      margin: 16px; 
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 16px;
       font-size: 12px;
       color: #1E1E1E;
     }
-    
+
     .section {
       margin-bottom: 16px;
       padding-bottom: 16px;
       border-bottom: 1px solid #E5E5E5;
     }
-    
+
     .section:last-child {
       border-bottom: none;
     }
-    
+
+    .row {
+      display: flex;
+    }
+
     h3 {
       margin: 0 0 12px 0;
       font-size: 14px;
       font-weight: 600;
     }
-    
+
     label {
       display: block;
       margin-bottom: 8px;
       font-size: 11px;
       font-weight: 500;
     }
-    
-    input[type="number"], textarea {
+
+    input[type="number"],
+    textarea {
       width: 100%;
       padding: 6px 8px;
       border: 1px solid #D1D5DB;
@@ -40,7 +46,7 @@
       font-size: 11px;
       box-sizing: border-box;
     }
-    
+
     button {
       background: #18A0FB;
       color: white;
@@ -53,32 +59,32 @@
       margin-right: 8px;
       margin-bottom: 8px;
     }
-    
+
     button:hover {
       background: #0C8CE9;
     }
-    
+
     button:disabled {
       background: #9CA3AF;
       cursor: not-allowed;
     }
-    
+
     button.secondary {
       background: #F3F4F6;
       color: #374151;
       border: 1px solid #D1D5DB;
     }
-    
+
     button.secondary:hover {
       background: #E5E7EB;
     }
-    
-    
+
+
     .results-container {
       display: none;
       margin-top: 16px;
     }
-    
+
     .result-item {
       padding: 8px;
       border: 1px solid #E5E7EB;
@@ -90,80 +96,80 @@
       align-items: center;
       gap: 8px;
     }
-    
+
     .result-item:hover {
       background: #F9FAFB;
       border-color: #D1D5DB;
     }
-    
+
     .result-item.selected {
       background: #EBF8FF;
       border-color: #18A0FB;
     }
-    
+
     .result-item.has-issues {
       border-color: #F59E0B;
       background: #FFFBEB;
     }
-    
+
     .result-item.no-issues {
       border-color: #10B981;
       background: #F0FDF4;
     }
-    
+
     .result-node-name {
       font-weight: 600;
       margin-bottom: 2px;
     }
-    
+
     .result-changes {
       color: #6B7280;
     }
-    
+
     .checkbox-group {
       margin: 8px 0;
     }
-    
+
     .checkbox-group label {
       display: flex;
       align-items: center;
       margin-bottom: 4px;
     }
-    
+
     .checkbox-group input[type="checkbox"] {
       width: auto;
       margin-right: 6px;
     }
-    
+
     .error-message {
       color: #DC2626;
       font-size: 10px;
       margin-top: 4px;
     }
-    
+
     .warning-message {
       color: #D97706;
       font-size: 10px;
       margin-top: 4px;
     }
-    
+
     .info-message {
       color: #2563EB;
       font-size: 10px;
       margin-top: 4px;
     }
-    
+
     /* Tab styles */
     .tab-container {
       margin-bottom: 16px;
     }
-    
+
     .tab-buttons {
       display: flex;
       border-bottom: 1px solid #E5E5E5;
       margin-bottom: 16px;
     }
-    
+
     .tab-button {
       flex: 1;
       padding: 8px 16px;
@@ -177,41 +183,42 @@
       margin-right: 0;
       margin-bottom: 0;
     }
-    
+
     .tab-button.active {
       color: #18A0FB;
       border-bottom-color: #18A0FB;
     }
-    
+
     .tab-button:hover {
       background: #F9FAFB;
       color: #374151;
     }
-    
+
     .tab-button.active:hover {
       color: #18A0FB;
     }
-    
+
     .tab-panel {
       display: none;
     }
-    
+
     .tab-panel.active {
       display: block;
     }
-    
+
     #results-controls {
       display: flex;
       gap: 8px;
       margin-bottom: 12px;
     }
-    
+
     #results-controls button {
       font-size: 10px;
       padding: 4px 8px;
     }
   </style>
 </head>
+
 <body>
   <!-- Tab Navigation -->
   <div class="tab-container">
@@ -219,22 +226,22 @@
       <button class="tab-button active" id="tab-operations">操作</button>
       <button class="tab-button" id="tab-settings">設定</button>
     </div>
-    
+
     <!-- Operations Panel -->
     <div class="tab-panel active" id="panel-operations">
       <!-- Actions Section -->
       <div class="section">
-        <h3>スキャン</h3>
+        <h3>スキャン or 選択に適用</h3>
         <div id="scan-mode-info" class="info-message">スキャンモード: ページ全体</div>
-        <button id="scan">スキャン実行</button>
-      </div>
-
-
-      <!-- Manual Tools Section -->
-      <div class="section">
-        <h3>手動選択ツール</h3>
-        <button id="apply-selected">選択中のノードに適用</button>
-        
+        <div class="row">
+          <div>
+            <button id="scan">スキャン実行</button>
+          </div>
+          <div>
+            <button id="apply-selected">選択中のノードに適用</button>
+          </div>
+        </div>
+        <h4>適用内容</h4>
         <div class="checkbox-group">
           <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
           <label><input type="checkbox" id="manual-convert-soft-breaks" checked> ソフト改行は改行に変換</label>
@@ -252,22 +259,22 @@
         <div id="results-list"></div>
       </div>
     </div>
-    
+
     <!-- Settings Panel -->
     <div class="tab-panel" id="panel-settings">
       <!-- Detection Configuration Section -->
       <div class="section">
         <h3>検出設定</h3>
-        
-        <label for="min-chars">最小文字数:</label>
+
+        <label for="min-chars">スキャン対象の最小文字数:</label>
         <input type="number" id="min-chars" value="20" min="1" max="1000" />
-        
+
         <label for="line-break-threshold">改行処理閾値 (コンテナ幅比率):</label>
         <input type="number" id="line-break-threshold" value="0.8" min="0.1" max="1.0" step="0.1" />
-        
-        <label for="font-width-multiplier">フォント幅係数 (調整用):</label>
+
+        <label for="font-width-multiplier">改行処理計算用フォント幅係数:</label>
         <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05" />
-        
+
         <label for="soft-break-chars">ソフト改行文字 (1行1文字):</label>
         <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力"> </textarea>
 
@@ -284,30 +291,30 @@
     let currentResults = [];
     let isProcessing = false;
     let selectedNodeIds = new Set();
-    
+
     // Tab management
     function switchTab(tabName) {
       // Remove active classes
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-      
+
       // Add active classes
       document.getElementById(`tab-${tabName}`).classList.add('active');
       document.getElementById(`panel-${tabName}`).classList.add('active');
     }
-    
+
     // Configuration management
     function getConfig() {
       const softBreakText = document.getElementById('soft-break-chars').value;
-      
+
       // ソフト改行文字の特別処理
       let softBreakChars = [];
-      
+
       // テキストエリアの値を文字単位で処理
       for (let i = 0; i < softBreakText.length; i++) {
         const char = softBreakText[i];
         const code = char.charCodeAt(0);
-        
+
         // ソフト改行文字（LSEP, PSEP）や特殊文字を検出
         if (code === 8232 || code === 8233 || code === 8203 || code === 65279) {
           if (softBreakChars.indexOf(char) === -1) {
@@ -315,24 +322,24 @@
           }
         }
       }
-      
+
       // 通常の改行で分割して追加の文字を処理
       const lines = softBreakText.split(/[\r\n]+/)
         .map(line => line.trim())
         .filter(line => line.length > 0);
-      
+
       for (const line of lines) {
         // 通常の文字列として入力された場合
         if (line.length > 0 && softBreakChars.indexOf(line) === -1) {
           softBreakChars.push(line);
         }
       }
-      
+
       // デフォルトのソフト改行文字を設定（空の場合）
       if (softBreakChars.length === 0) {
         softBreakChars = ['\u2028'];
       }
-      
+
       return {
         minCharacters: parseInt(document.getElementById('min-chars').value),
         lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
@@ -352,7 +359,7 @@
       isProcessing = processing;
       document.getElementById('scan').disabled = processing;
       document.getElementById('apply-selected').disabled = processing;
-      
+
       // 選択関連ボタンの状態
       const selectAllBtn = document.getElementById('select-all');
       const selectNoneBtn = document.getElementById('select-none');
@@ -366,11 +373,11 @@
     function showResults(results, scanInfo) {
       currentResults = results;
       selectedNodeIds.clear();
-      
+
       const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
       const list = document.getElementById('results-list');
-      
+
       const withIssues = results.filter(r => r.issues.length > 0);
       const scanInfoText = scanInfo ? ` (${scanInfo})` : '';
       summary.innerHTML = `
@@ -378,21 +385,21 @@
           ${withIssues.length}ノード検出${scanInfoText}
         </div>
       `;
-      
+
       list.innerHTML = '';
       withIssues.forEach(result => {
         const item = document.createElement('div');
         item.className = 'result-item has-issues';
         item.dataset.nodeId = result.node.id;
         // テキスト内容を安全にHTMLエスケープ
-        const textPreview = (result.originalText || '').substring(0, 50) + 
-                           (result.originalText.length > 50 ? '...' : '');
+        const textPreview = (result.originalText || '').substring(0, 50) +
+          (result.originalText.length > 50 ? '...' : '');
         const escapedText = textPreview
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
-        
+
         item.innerHTML = `
           <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
           <div class="result-content">
@@ -400,7 +407,7 @@
             <div class="result-changes">${result.estimatedChanges}</div>
           </div>
         `;
-        
+
         // クリックイベントを追加
         item.addEventListener('click', (e) => {
           if (e.target.type !== 'checkbox') {
@@ -409,7 +416,7 @@
             checkbox.dispatchEvent(new Event('change'));
           }
         });
-        
+
         // チェックボックスのchangeイベント
         const checkbox = item.querySelector('.node-checkbox');
         checkbox.addEventListener('change', (e) => {
@@ -423,23 +430,23 @@
           }
           updateSelectionAndFocus();
         });
-        
+
         list.appendChild(item);
       });
-      
+
       // 選択関連ボタンの状態を更新
       const selectAllBtn = document.getElementById('select-all');
       const selectNoneBtn = document.getElementById('select-none');
       if (selectAllBtn) selectAllBtn.disabled = withIssues.length === 0;
       if (selectNoneBtn) selectNoneBtn.disabled = false;
-      
+
       container.style.display = 'block';
     }
 
     function showError(message) {
       const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
-      
+
       summary.innerHTML = `<div class="error-message">エラー: ${message}</div>`;
       container.style.display = 'block';
     }
@@ -447,7 +454,7 @@
     function showWarning(message) {
       const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
-      
+
       summary.innerHTML = `<div class="warning-message">警告: ${message}</div>`;
       container.style.display = 'block';
     }
@@ -455,7 +462,7 @@
     // 選択とフォーカス機能
     function updateSelectionAndFocus() {
       const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
-      
+
       // Figmaでノードを選択（空の場合も含む）
       parent.postMessage({
         pluginMessage: {
@@ -464,7 +471,7 @@
         }
       }, '*');
     }
-    
+
     // Figmaの選択変更をUIに反映
     function syncSelectionFromFigma() {
       parent.postMessage({
@@ -486,7 +493,7 @@
     function selectNoneNodes() {
       // 直接selectedNodeIdsをクリアしてUI更新
       selectedNodeIds.clear();
-      
+
       // すべてのチェックボックスとUIを更新（changeイベントを発火させない）
       document.querySelectorAll('.result-item').forEach(item => {
         item.classList.remove('selected');
@@ -495,7 +502,7 @@
           checkbox.checked = false;
         }
       });
-      
+
       // Figmaの選択をクリア
       updateSelectionAndFocus();
     }
@@ -505,18 +512,18 @@
       const config = getConfig();
       console.log('UI送信設定:', config);
       setProcessingState(true);
-      
+
       // スキャン範囲の情報を表示
       const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
       summary.innerHTML = '<div class="info-message">スキャン中...</div>';
       container.style.display = 'block';
-      
-      parent.postMessage({ 
-        pluginMessage: { 
+
+      parent.postMessage({
+        pluginMessage: {
           type: 'scan',
           config: config
-        } 
+        }
       }, '*');
     };
 
@@ -530,13 +537,13 @@
         removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
         convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked
       };
-      
-      parent.postMessage({ 
-        pluginMessage: { 
+
+      parent.postMessage({
+        pluginMessage: {
           type: 'apply-selected',
           config: config,
           options: manualOptions
-        } 
+        }
       }, '*');
     };
 
@@ -555,24 +562,24 @@
           setProcessingState(false);
           showResults(msg.results, msg.scanInfo);
           break;
-          
+
         case 'error':
           setProcessingState(false);
           showError(msg.message);
           break;
-          
+
         case 'warning':
           showWarning(msg.message);
           break;
-          
+
         case 'selection-changed':
           updateUISelection(msg.selectedNodeIds);
           break;
-          
+
         case 'config-loaded':
           applyConfigToUI(msg.config);
           break;
-          
+
         case 'scan-mode-info':
           updateScanModeDisplay(msg.mode, msg.details);
           break;
@@ -584,16 +591,16 @@
       document.getElementById('min-chars').value = config.minCharacters || 20;
       document.getElementById('line-break-threshold').value = config.lineBreakThreshold || 0.8;
       document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier || 1.0;
-      
+
       const softBreakChars = config.softBreakChars || ['\u2028'];
       // ソフト改行文字を適切に表示（改行で区切らない）
       document.getElementById('soft-break-chars').value = softBreakChars.join('');
-      
+
       const enabledDetections = config.enabledDetections || ['auto-width', 'edge-breaking', 'soft-break'];
       document.getElementById('detect-edge-breaking').checked = enabledDetections.includes('edge-breaking');
       document.getElementById('detect-soft-break').checked = enabledDetections.includes('soft-break');
     }
-    
+
     // 初期設定を適用
     function initializeUI() {
       // デフォルトのソフト改行文字を設定
@@ -601,7 +608,7 @@
         document.getElementById('soft-break-chars').value = '\u2028';
       }
     }
-    
+
     // UIの選択状態を更新
     function updateUISelection(figmaSelectedNodeIds) {
       // 現在のUI選択をクリア
@@ -613,7 +620,7 @@
           checkbox.checked = false;
         }
       });
-      
+
       // Figmaで選択されているノードがUI結果リストに含まれていればチェック
       figmaSelectedNodeIds.forEach(nodeId => {
         const resultItem = document.querySelector(`[data-node-id="${nodeId}"]`);
@@ -627,17 +634,17 @@
         }
       });
     }
-    
-    
+
+
     // スキャンモード表示を更新
     function updateScanModeInfo() {
-      parent.postMessage({ 
-        pluginMessage: { 
+      parent.postMessage({
+        pluginMessage: {
           type: 'get-scan-mode'
-        } 
+        }
       }, '*');
     }
-    
+
     // スキャンモード表示を更新
     function updateScanModeDisplay(mode, details) {
       const scanModeInfo = document.getElementById('scan-mode-info');
@@ -645,21 +652,22 @@
         scanModeInfo.innerHTML = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
       }
     }
-    
+
     // Initialize
     setProcessingState(false);
     initializeUI();
     updateScanModeInfo();
-    
+
     // Load saved configuration on startup
-    parent.postMessage({ 
-      pluginMessage: { 
+    parent.postMessage({
+      pluginMessage: {
         type: 'load-config'
-      } 
+      }
     }, '*');
-    
+
     // 定期的にスキャンモードを更新（選択状況の変化を検知）
     setInterval(updateScanModeInfo, 1000);
   </script>
 </body>
+
 </html>

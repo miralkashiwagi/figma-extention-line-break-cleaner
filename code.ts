@@ -387,7 +387,7 @@ class TextAnalyzer {
     return changes.join(', ');
   }
 
-  findTextNodes(): TextNode[] {
+  findTextNodes(ignoreMinCharacters: boolean = false): TextNode[] {
     // 選択されたノードがある場合、その中のテキストノードを検索
     const selection = figma.currentPage.selection;
     
@@ -398,18 +398,20 @@ class TextAnalyzer {
       for (const selectedNode of selection) {
         if (selectedNode.type === 'TEXT') {
           // 選択されたノード自体がテキストノードの場合
-          if (!selectedNode.locked && selectedNode.visible && 
-              selectedNode.characters.length >= this.config.minCharacters) {
+          const minCharCheck = ignoreMinCharacters || selectedNode.characters.length >= this.config.minCharacters;
+          if (!selectedNode.locked && selectedNode.visible && minCharCheck) {
             textNodes.push(selectedNode);
           }
         } else {
           // 選択されたノード内のテキストノードを検索
           if ('findAll' in selectedNode) {
             const childTextNodes = selectedNode.findAll((node: SceneNode) => {
-              return node.type === 'TEXT' && 
-                     !node.locked && 
-                     node.visible &&
-                     (node as TextNode).characters.length >= this.config.minCharacters;
+              if (node.type !== 'TEXT') return false;
+              const textNode = node as TextNode;
+              const minCharCheck = ignoreMinCharacters || textNode.characters.length >= this.config.minCharacters;
+              return !textNode.locked && 
+                     textNode.visible &&
+                     minCharCheck;
             }) as TextNode[];
             
             textNodes.push(...childTextNodes);
@@ -424,16 +426,18 @@ class TextAnalyzer {
     // 選択がない場合は現在のページ全体を検索
     console.log('選択なし - ページ全体を検索');
     return figma.currentPage.findAll(node => {
-      return node.type === 'TEXT' && 
-             !node.locked && 
-             node.visible &&
-             node.characters.length >= this.config.minCharacters;
+      if (node.type !== 'TEXT') return false;
+      const textNode = node as TextNode;
+      const minCharCheck = ignoreMinCharacters || textNode.characters.length >= this.config.minCharacters;
+      return !textNode.locked && 
+             textNode.visible &&
+             minCharCheck;
     }) as TextNode[];
   }
 
   getSelectedTextNodes(): TextNode[] {
     return figma.currentPage.selection.filter(
-      node => node.type === 'TEXT'
+      node => node.type === 'TEXT' && !node.locked && node.visible
     ) as TextNode[];
   }
 }
@@ -482,9 +486,9 @@ class TextProcessor {
     return changes;
   }
 
-  private removeLineBreaksJapanesePriority(text: string, containerWidth: number = 500, fontSize: number = 16): string {
-    // 最小文字数チェック
-    if (text.length < this.config.minCharacters) {
+  private removeLineBreaksJapanesePriority(text: string, containerWidth: number = 500, fontSize: number = 16, ignoreMinCharacters: boolean = false): string {
+    // 最小文字数チェック（手動選択時は無視）
+    if (!ignoreMinCharacters && text.length < this.config.minCharacters) {
       console.log(`テキストが短すぎます (${text.length}文字 < ${this.config.minCharacters}文字) - 処理をスキップ`);
       return text; // そのまま返す
     }
@@ -1017,7 +1021,7 @@ class BatchProcessor {
 
         if (forceChanges.removeLineBreaks) {
           const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
-          processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize);
+          processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize, true);
           
           // auto-width要素は自動的にauto-heightに変換
           if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
