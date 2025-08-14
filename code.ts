@@ -57,9 +57,22 @@ interface UIMessage {
 // ===== TEXT ANALYZER CLASS =====
 class TextAnalyzer {
   private config: ProcessingConfig;
+  private regexCache: Map<string, RegExp> = new Map();
 
   constructor(config: ProcessingConfig) {
     this.config = config;
+  }
+
+  private getBreakPattern(): RegExp {
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const cacheKey = allBreakChars.join('|');
+    
+    if (!this.regexCache.has(cacheKey)) {
+      const pattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+      this.regexCache.set(cacheKey, pattern);
+    }
+    
+    return this.regexCache.get(cacheKey)!;
   }
 
   async analyzeTextNode(node: TextNode): Promise<TextAnalysisResult> {
@@ -198,9 +211,7 @@ class TextAnalyzer {
 
   private getLineNumbers(text: string): number[] {
     // 通常改行とソフト改行の両方で分割
-    const allBreakChars = ['\n', ...this.config.softBreakChars];
-    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
-    const lines = text.split(breakPattern);
+    const lines = text.split(this.getBreakPattern());
     return lines.map((_, index) => index + 1).filter(lineNum => lineNum < lines.length);
   }
 
@@ -284,9 +295,7 @@ class TextAnalyzer {
     const lines: string[] = [];
 
     // 通常改行とソフト改行の両方で分割
-    const allBreakChars = ['\n', ...this.config.softBreakChars];
-    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
-    const paragraphs = text.split(breakPattern);
+    const paragraphs = text.split(this.getBreakPattern());
 
     for (const paragraph of paragraphs) {
       if (paragraph.trim() === '') {
@@ -321,9 +330,7 @@ class TextAnalyzer {
 
   private getSoftBreakLines(text: string): number[] {
     // 通常改行とソフト改行の両方で分割
-    const allBreakChars = ['\n', ...this.config.softBreakChars];
-    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
-    const lines = text.split(breakPattern);
+    const lines = text.split(this.getBreakPattern());
     const softBreakLines: number[] = [];
 
     lines.forEach((line, index) => {
@@ -417,9 +424,22 @@ class TextAnalyzer {
 // ===== TEXT PROCESSOR CLASS =====
 class TextProcessor {
   private config: ProcessingConfig;
+  private regexCache: Map<string, RegExp> = new Map();
 
   constructor(config: ProcessingConfig) {
     this.config = config;
+  }
+
+  private getBreakPattern(): RegExp {
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const cacheKey = allBreakChars.join('|');
+    
+    if (!this.regexCache.has(cacheKey)) {
+      const pattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+      this.regexCache.set(cacheKey, pattern);
+    }
+    
+    return this.regexCache.get(cacheKey)!;
   }
 
   generateChanges(originalText: string, issues: DetectedIssue[], node: TextNode): ProcessingChanges {
@@ -465,9 +485,7 @@ class TextProcessor {
     }
 
     // 通常改行とソフト改行の両方で分割
-    const allBreakChars = ['\n', ...this.config.softBreakChars];
-    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
-    const lines = text.split(breakPattern);
+    const lines = text.split(this.getBreakPattern());
 
     const shouldBreakAfter: boolean[] = [];
 
@@ -1466,17 +1484,26 @@ function handleClearResults(): void {
   isProcessing = false;
   currentProcessor = null;
 
+  // 通知ハンドラーをクリーンアップ
+  if (currentNotificationHandler) {
+    currentNotificationHandler.cancel();
+    currentNotificationHandler = null;
+  }
+
   // Figmaの選択もクリア
   figma.currentPage.selection = [];
-
-
 }
 
 // Handle cancel operation
 function handleCancel(): void {
-
   if (currentProcessor) {
     currentProcessor.cancel();
+  }
+
+  // 通知ハンドラーをクリーンアップ
+  if (currentNotificationHandler) {
+    currentNotificationHandler.cancel();
+    currentNotificationHandler = null;
   }
 
   isProcessing = false;
@@ -1484,7 +1511,6 @@ function handleCancel(): void {
   sendToUI({
     type: 'cancelled'
   });
-
 }
 
 // Message handler from UI
