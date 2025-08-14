@@ -130,7 +130,7 @@ class TextAnalyzer {
       if ((currentAutoResize === 'NONE' || currentAutoResize === 'HEIGHT' || currentAutoResize === 'WIDTH_AND_HEIGHT') && currentText.indexOf('\n') !== -1) {
         issues.push({
           type: 'auto-width',
-          confidence: 0.9,
+          confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.AUTO_WIDTH,
           description: 'Text with line breaks can be processed',
           lineNumbers: this.getLineNumbers(currentText)
         });
@@ -148,7 +148,7 @@ class TextAnalyzer {
     try {
       const currentText = node.characters;
       const nodeWidth = node.width;
-      const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
+      const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
 
       const autoResize = node.textAutoResize;
       if (autoResize === 'NONE' || autoResize === 'HEIGHT') {
@@ -157,7 +157,7 @@ class TextAnalyzer {
         if (suspiciousLines.length > 0) {
           issues.push({
             type: 'edge-breaking',
-            confidence: 0.7,
+            confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.EDGE_BREAKING,
             description: `${suspiciousLines.length} lines appear to break at container edge`,
             lineNumbers: suspiciousLines
           });
@@ -183,7 +183,7 @@ class TextAnalyzer {
         if (softBreakCount > 0) {
           issues.push({
             type: 'soft-break',
-            confidence: 0.8,
+            confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.SOFT_BREAK,
             description: `${softBreakCount} soft breaks can be converted to hard breaks`,
             lineNumbers: this.getSoftBreakLines(currentText)
           });
@@ -204,7 +204,7 @@ class TextAnalyzer {
     return lines.map((_, index) => index + 1).filter(lineNum => lineNum < lines.length);
   }
 
-  private findEdgeBreakingLines(text: string, containerWidth: number, fontSize: number = 16): number[] {
+  private findEdgeBreakingLines(text: string, containerWidth: number, fontSize: number = PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE): number[] {
     // 自動改行を考慮した行分割
     const lines = this.simulateWordWrap(text, containerWidth, fontSize);
 
@@ -458,7 +458,7 @@ class TextProcessor {
     return changes;
   }
 
-  private removeLineBreaksJapanesePriority(text: string, containerWidth: number = 500, fontSize: number = 16, ignoreMinCharacters: boolean = false): string {
+  private removeLineBreaksJapanesePriority(text: string, containerWidth: number = PROCESSING_CONSTANTS.DEFAULT_CONTAINER_WIDTH, fontSize: number = PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE, ignoreMinCharacters: boolean = false): string {
     // 最小文字数チェック（手動選択時は無視）
     if (!ignoreMinCharacters && text.length < this.config.minCharacters) {
       return text; // そのまま返す
@@ -520,7 +520,7 @@ class TextProcessor {
     return result.join('\n');
   }
 
-  private shouldRemoveLineBreak(currentLine: string, nextLine: string, containerWidth: number, fontSize: number = 16): boolean {
+  private shouldRemoveLineBreak(currentLine: string, nextLine: string, containerWidth: number, fontSize: number = PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE): boolean {
     const currentTrimmed = currentLine.trim();
     const nextTrimmed = nextLine.trim();
 
@@ -794,7 +794,7 @@ class BatchProcessor {
     this.isCancelled = false;
 
     const results: TextAnalysisResult[] = [];
-    const CHUNK_SIZE = 50;
+    const CHUNK_SIZE = PROCESSING_CONSTANTS.ANALYSIS_CHUNK_SIZE;
 
     try {
       for (let i = 0; i < nodes.length; i += CHUNK_SIZE) {
@@ -857,7 +857,7 @@ class BatchProcessor {
 
     const results: ProcessingResult[] = [];
     const nodesToProcess = analysisResults.filter(result => result.issues.length > 0);
-    const CHUNK_SIZE = 25;
+    const CHUNK_SIZE = PROCESSING_CONSTANTS.PROCESSING_CHUNK_SIZE;
 
     try {
       const { processable, issues } = await this.fontManager.validateNodesForProcessing(
@@ -944,7 +944,7 @@ class BatchProcessor {
     const allNodes = this.analyzer.findTextNodes();
 
     if (allNodes.length === 0) {
-      figma.notify('現在のページにテキストノードが見つかりません', { error: true, timeout: 3000 });
+      figma.notify('現在のページにテキストノードが見つかりません', { error: true, timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
       throw new Error('No text nodes found in current page');
     }
 
@@ -974,7 +974,7 @@ class BatchProcessor {
         let processedText = node.characters;
 
         if (forceChanges.removeLineBreaks) {
-          const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
+          const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
           processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize, true);
 
           // auto-width要素は自動的にauto-heightに変換
@@ -1075,6 +1075,23 @@ class BatchProcessor {
 
 // ===== MAIN PLUGIN CODE =====
 
+// Processing constants
+const PROCESSING_CONSTANTS = {
+  DEFAULT_FONT_SIZE: 16,
+  DEFAULT_CONTAINER_WIDTH: 500,
+  ANALYSIS_CHUNK_SIZE: 50,
+  PROCESSING_CHUNK_SIZE: 25,
+  CONFIDENCE_LEVELS: {
+    AUTO_WIDTH: 0.9,
+    EDGE_BREAKING: 0.7,
+    SOFT_BREAK: 0.8
+  },
+  NOTIFICATION_TIMEOUTS: {
+    PROGRESS: 30000,  // 30秒
+    COMPLETE: 3000    // 3秒
+  }
+};
+
 // Default configuration
 const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 20,
@@ -1143,7 +1160,7 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   currentProcessor = new BatchProcessor(config);
 
   // スキャン開始通知（長めのtimeoutで手動で消す）
-  currentNotificationHandler = figma.notify('スキャン中...', { timeout: 30000 });
+  currentNotificationHandler = figma.notify('スキャン中...', { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.PROGRESS });
 
   try {
     await saveConfig(config);
@@ -1177,9 +1194,9 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
     // スキャン完了通知
     const issueCount = results.filter(r => r.issues.length > 0).length;
     if (issueCount > 0) {
-      figma.notify(`スキャン完了: ${issueCount}個の問題を発見`, { timeout: 3000 });
+      figma.notify(`スキャン完了: ${issueCount}個の問題を発見`, { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
     } else {
-      figma.notify('スキャン完了: 問題なし', { timeout: 3000 });
+      figma.notify('スキャン完了: 問題なし', { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
     }
 
     // スキャン完了後、現在の選択状態を同期
@@ -1212,7 +1229,7 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
 
   // クリーニング開始通知（長めのtimeoutで手動で消す）
   const nodesToProcess = results.filter(r => r.issues.length > 0).length;
-  currentNotificationHandler = figma.notify(`クリーニング中... ${nodesToProcess}個のノードを処理`, { timeout: 30000 });
+  currentNotificationHandler = figma.notify(`クリーニング中... ${nodesToProcess}個のノードを処理`, { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.PROGRESS });
 
   try {
     const processResults = await currentProcessor.processNodes(results, onProgress);
@@ -1232,11 +1249,11 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
     
     // クリーニング完了通知
     if (stats.successful > 0) {
-      figma.notify(`クリーニング完了: ${stats.successful}個のノードを処理`, { timeout: 3000 });
+      figma.notify(`クリーニング完了: ${stats.successful}個のノードを処理`, { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
     }
     
     if (stats.failed > 0) {
-      figma.notify(`${stats.failed}個のノードで処理に失敗しました`, { error: true, timeout: 3000 });
+      figma.notify(`${stats.failed}個のノードで処理に失敗しました`, { error: true, timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
       sendToUI({
         type: 'warning',
         message: `${stats.failed} nodes failed to process. Check for missing fonts or locked layers.`
@@ -1272,12 +1289,12 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
     ) as TextNode[];
 
     if (selectedNodes.length === 0) {
-      figma.notify('テキストノードが選択されていません', { error: true, timeout: 3000 });
+      figma.notify('テキストノードが選択されていません', { error: true, timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
       return;
     }
 
     // 手動クリーニング開始通知（長めのtimeoutで手動で消す）
-    currentNotificationHandler = figma.notify(`クリーニング中... ${selectedNodes.length}個の選択テキストを処理`, { timeout: 30000 });
+    currentNotificationHandler = figma.notify(`クリーニング中... ${selectedNodes.length}個の選択テキストを処理`, { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.PROGRESS });
 
     const processResults: ProcessingResult[] = [];
 
@@ -1311,11 +1328,11 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
     const failCount = processResults.filter(r => !r.success).length;
 
     if (successCount > 0) {
-      figma.notify(`クリーニング完了: ${successCount}個のテキストを処理`, { timeout: 3000 });
+      figma.notify(`クリーニング完了: ${successCount}個のテキストを処理`, { timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
     }
 
     if (failCount > 0) {
-      figma.notify(`${failCount}個のノードで処理に失敗しました`, { error: true, timeout: 3000 });
+      figma.notify(`${failCount}個のノードで処理に失敗しました`, { error: true, timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE });
     }
 
     sendToUI({
