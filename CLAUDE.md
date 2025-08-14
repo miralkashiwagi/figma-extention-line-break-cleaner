@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Figma plugin called "Line Break Cleaner" built with TypeScript. The plugin automatically detects and cleans unnecessary line breaks in Japanese and multilingual text nodes, with intelligent detection algorithms for different text layout scenarios.
+This is a Figma plugin called "Line Break Cleaner" built with TypeScript. The plugin automatically detects and cleans unnecessary line breaks in Japanese and multilingual text nodes, with intelligent detection algorithms for different text layout scenarios. Features a tabbed interface with scan-based workflow and manual selection tools.
 
 ## Development Commands
 
@@ -28,37 +28,48 @@ npm run lint:fix
 
 ### Core Features
 
-1. **Auto-width Text Cleaning**: Detects auto-width text nodes with unnecessary line breaks and converts them to auto-height
-2. **Edge-case Line Break Detection**: Identifies line breaks that occur at the edge of text containers (right-edge breaking)
-3. **Soft Break Conversion**: Converts soft line breaks to hard breaks when paragraph spacing is not used
-4. **Manual Selection Tools**: Allows users to manually clean selected text nodes
+1. **Auto-width Text Cleaning**: Always-enabled detection of auto-width text nodes with unnecessary line breaks and converts them to auto-height
+2. **Right-edge Line Break Detection**: Identifies line breaks that occur at the edge of text containers using visual word wrap simulation
+3. **Soft Break Conversion**: Converts soft line breaks (LSEP \u2028) to hard breaks when selected
+4. **Manual Selection Tools**: Allows users to manually clean selected text nodes with configurable options
 
 ### Detection Algorithms
 
-**Auto-width Detection:**
+**Auto-width Detection (Always Enabled):**
 - Targets `textAutoResize: "WIDTH"` nodes
 - Minimum character threshold (default: 20)
 - Converts to `textAutoResize: "HEIGHT"`
-- Applies Japanese-priority line break removal policy
+- Applies line break removal policy
 
-**Edge-breaking Detection:**
+**Right-edge Breaking Detection:**
 - Works on fixed size or auto-height nodes
-- Calculates line width ratio vs container width
-- Configurable threshold (default: 0.92)
+- Uses word wrap simulation to detect visual line breaks (not just \n characters)
+- Calculates line width ratio vs container width using font metrics
+- Configurable threshold (default: 0.8)
+- Properly handles word wrapping in Japanese and multilingual text
 
 **Soft Break Handling:**
-- Detects nodes with `paragraphSpacing: 0`
-- Identifies soft break candidate characters
-- Converts soft breaks to hard breaks (`\n`)
+- Detects and converts LSEP characters (\u2028) to normal line breaks (\n)
+- User-configurable soft break character set
+- Optional conversion during both scan and manual operations
 
-### Safety Features
+### Current UI Design
 
-- Missing font warnings and auto-skip
-- Undo support for all operations
-- Layout change warnings (auto-width → auto-height conversion)
-- Exclusion rules for bullet points, addresses, lyrics, etc.
-- Batch processing with progress indication and timeout settings
-- Cancellable operations with split processing for large files
+**Tabbed Interface:**
+- **操作 (Operations) Tab**: Scan execution, results display, manual tools
+- **設定 (Settings) Tab**: Detection configuration, thresholds, soft break characters
+
+**Scan-based Workflow:**
+1. Configure detection settings in Settings tab
+2. Run scan to detect problematic text nodes
+3. View results as selectable list showing text content preview
+4. Select individual nodes or use "すべて選択" (select all)
+5. Apply changes to selected nodes only
+
+**Manual Tools:**
+- Process currently selected Figma nodes
+- Independent checkboxes for line break removal and soft break conversion
+- Bypasses scan process for direct application
 
 ## Architecture
 
@@ -66,44 +77,62 @@ The plugin follows Figma's standard plugin architecture:
 
 - **Main plugin code**: `code.ts` (compiles to `code.js`)
   - Text node analysis and processing logic
+  - Word wrap simulation for accurate line break detection
   - Font loading and text metrics calculation
   - Figma API interactions for text manipulation
 
 - **UI code**: `ui.html`
-  - Detection configuration interface
-  - Results display and individual node controls
-  - Batch operation controls (scan/apply/undo)
-  - Safety toggles and options
+  - Tabbed interface with operations and settings panels
+  - Scan results displayed as selectable list with text content preview
+  - Bidirectional selection sync between UI and Figma canvas
+  - Configuration controls for detection thresholds and soft break characters
 
 - **Text Processing Logic**:
-  - Japanese-priority line break removal
-  - Space normalization algorithms
-  - Line width estimation calculations
-  - Soft break character detection
+  - Line break removal with sentence boundary protection
+  - Word wrap simulation using font metrics
+  - Soft break character detection and conversion
+  - Visual line break analysis vs explicit line break characters
 
 ## Key UI Components
 
-1. **Detection Configuration**
-   - Character count thresholds
-   - Edge-breaking ratio settings
-   - Soft break character set configuration (user-editable)
-   - Safety feature toggles
+1. **Detection Configuration (Settings Tab)**
+   - Minimum character count threshold
+   - Right-edge breaking ratio threshold (0.1-1.0)
+   - Font width multiplier for estimation tuning
+   - User-editable soft break character textarea
+   - Detection type toggles (right-edge, soft break)
 
-2. **Results Interface**
-   - Detected nodes list with jump/apply/exclude options
-   - Preview of changes before application
-   - Individual node controls
+2. **Scan Results Interface (Operations Tab)**
+   - Results displayed as clickable list items with checkboxes
+   - Text content preview (50 characters) instead of node names
+   - "すべて選択" and "選択解除" buttons for bulk selection
+   - Bidirectional selection sync with Figma canvas
 
-3. **Batch Operations**
-   - Scan execution with progress indication
-   - Bulk apply/undo operations
-   - Cancellable processing for large datasets
-   - Split processing to maintain UI responsiveness
+3. **Manual Tools (Operations Tab)**
+   - "選択中のノードに適用" button for direct processing
+   - Independent checkboxes for line break removal and soft break conversion
+   - Works on current Figma selection without scanning
 
-4. **Manual Tools**
-   - Selected node processing
-   - Custom line break removal options
-   - Advanced text cleaning controls
+## Technical Implementation Details
+
+### Word Wrap Simulation
+- `simulateWordWrap()` method accurately detects visual line breaks
+- Splits text into words while preserving spaces
+- Calculates estimated width using font metrics and character type detection
+- Breaks lines when estimated width exceeds container width
+- Returns array of visually accurate lines for right-edge detection
+
+### Selection Synchronization
+- UI selection changes automatically update Figma canvas selection
+- Figma selection changes reflected in UI when nodes are in scan results
+- Selection state preserved during scan operations
+- Efficient tracking using Set data structure
+
+### Font Metrics and Text Width Estimation
+- Character-specific width estimation for Japanese and Latin characters
+- Configurable font width multiplier for fine-tuning
+- Proper handling of different font sizes and families
+- Accurate estimation crucial for right-edge breaking detection
 
 ## TypeScript Configuration
 
@@ -117,19 +146,20 @@ The plugin follows Figma's standard plugin architecture:
 ### Core Processing Requirements
 - Text processing requires font loading before manipulation
 - Auto-width to auto-height conversion may cause layout shifts
-- Line width calculations are estimations and may have false positives
+- Line width calculations use word wrap simulation for accuracy
 - All text operations should be undoable
 - Missing fonts must be handled gracefully with user warnings
 
-### Performance & UX Requirements
-- Implement batch processing with timeout settings to prevent UI freezing
-- Large file processing must be split into chunks with progress indication
-- All operations should be cancellable by user
-- Soft break character sets must be user-configurable via UI
-- Edge-breaking threshold (0.92) should be adjustable for user testing and tuning
+### Current UI State Management
+- No progress display or cancellation functionality (removed)
+- Simple scan → select → apply workflow
+- Results state cleared on each new scan
+- Selection state synchronized between UI and Figma
+- Manual tools operate independently of scan results
 
 ### Technical Considerations
-- Process text nodes in batches to maintain UI responsiveness
-- Implement proper async/await patterns for font loading
-- Use requestAnimationFrame or similar for UI updates during processing
-- Provide clear feedback on processing status and estimated time remaining
+- Word wrap simulation critical for accurate line break detection
+- Visual line breaks vs explicit \n characters properly differentiated
+- Soft break characters (LSEP) handled with Unicode escaping
+- Font metrics estimation tunable via UI multiplier setting
+- Right-edge threshold adjustable for testing and user preference

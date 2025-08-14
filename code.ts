@@ -201,12 +201,18 @@ class TextAnalyzer {
   }
 
   private getLineNumbers(text: string): number[] {
-    const lines = text.split('\n');
+    // 通常改行とソフト改行の両方で分割
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+    const lines = text.split(breakPattern);
     return lines.map((_, index) => index + 1).filter(lineNum => lineNum < lines.length);
   }
 
   private findEdgeBreakingLines(text: string, containerWidth: number, fontSize: number = 16): number[] {
-    const lines = text.split('\n');
+    // 自動改行を考慮した行分割
+    const lines = this.simulateWordWrap(text, containerWidth, fontSize);
+    console.log('Word wrap simulation result:', lines);
+    
     const suspiciousLines: number[] = [];
     
     lines.forEach((line, index) => {
@@ -281,8 +287,47 @@ class TextAnalyzer {
     return count;
   }
 
+  // 自動改行をシミュレートして実際の表示行を取得
+  private simulateWordWrap(text: string, containerWidth: number, fontSize: number): string[] {
+    const lines: string[] = [];
+    const paragraphs = text.split('\n');
+    
+    for (const paragraph of paragraphs) {
+      if (paragraph.trim() === '') {
+        lines.push('');
+        continue;
+      }
+      
+      const words = paragraph.split(/(\s+)/); // スペースも保持
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine + word;
+        const estimatedWidth = this.estimateTextWidth(testLine, fontSize);
+        
+        if (estimatedWidth <= containerWidth || currentLine === '') {
+          currentLine = testLine;
+        } else {
+          // 現在行を追加して新しい行を開始
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      
+      // 最後の行を追加
+      if (currentLine !== '') {
+        lines.push(currentLine);
+      }
+    }
+    
+    return lines;
+  }
+
   private getSoftBreakLines(text: string): number[] {
-    const lines = text.split('\n');
+    // 通常改行とソフト改行の両方で分割
+    const allBreakChars = ['\n', ...this.config.softBreakChars];
+    const breakPattern = new RegExp(`[${allBreakChars.map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]`);
+    const lines = text.split(breakPattern);
     const softBreakLines: number[] = [];
     
     lines.forEach((line, index) => {
