@@ -1,17 +1,490 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+      margin: 16px; 
+      font-size: 12px;
+      color: #1E1E1E;
+    }
+    
+    .section {
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .section:last-child {
+      border-bottom: none;
+    }
+    
+    h3 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    input[type="number"], textarea {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #D1D5DB;
+      border-radius: 4px;
+      font-size: 11px;
+      box-sizing: border-box;
+    }
+    
+    button {
+      background: #18A0FB;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    
+    button:hover {
+      background: #0C8CE9;
+    }
+    
+    button:disabled {
+      background: #9CA3AF;
+      cursor: not-allowed;
+    }
+    
+    button.secondary {
+      background: #F3F4F6;
+      color: #374151;
+      border: 1px solid #D1D5DB;
+    }
+    
+    button.secondary:hover {
+      background: #E5E7EB;
+    }
+    
+    .progress-container {
+      display: none;
+      margin: 12px 0;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #E5E7EB;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #18A0FB;
+      width: 0%;
+      transition: width 0.2s;
+    }
+    
+    .progress-text {
+      font-size: 10px;
+      color: #6B7280;
+    }
+    
+    .results-container {
+      display: none;
+      margin-top: 16px;
+    }
+    
+    .result-item {
+      padding: 8px;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 10px;
+    }
+    
+    .result-item.has-issues {
+      border-color: #F59E0B;
+      background: #FFFBEB;
+    }
+    
+    .result-item.no-issues {
+      border-color: #10B981;
+      background: #F0FDF4;
+    }
+    
+    .result-node-name {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    
+    .result-changes {
+      color: #6B7280;
+    }
+    
+    .checkbox-group {
+      margin: 8px 0;
+    }
+    
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 6px;
+    }
+    
+    .error-message {
+      color: #DC2626;
+      font-size: 10px;
+      margin-top: 4px;
+    }
+    
+    .warning-message {
+      color: #D97706;
+      font-size: 10px;
+      margin-top: 4px;
+    }
+    
+    .info-message {
+      color: #2563EB;
+      font-size: 10px;
+      margin-top: 4px;
+    }
+    
+    /* Tab styles */
+    .tab-container {
+      margin-bottom: 16px;
+    }
+    
+    .tab-buttons {
+      display: flex;
+      border-bottom: 1px solid #E5E5E5;
+      margin-bottom: 16px;
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 8px 16px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #6B7280;
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+    
+    .tab-button.active {
+      color: #18A0FB;
+      border-bottom-color: #18A0FB;
+    }
+    
+    .tab-button:hover {
+      background: #F9FAFB;
+      color: #374151;
+    }
+    
+    .tab-button.active:hover {
+      color: #18A0FB;
+    }
+    
+    .tab-panel {
+      display: none;
+    }
+    
+    .tab-panel.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Tab Navigation -->
+  <div class="tab-container">
+    <div class="tab-buttons">
+      <button class="tab-button active" id="tab-operations">操作</button>
+      <button class="tab-button" id="tab-settings">設定</button>
+    </div>
+    
+    <!-- Operations Panel -->
+    <div class="tab-panel active" id="panel-operations">
+      <!-- Actions Section -->
+      <div class="section">
+        <h3>スキャン・適用</h3>
+        <button id="scan">スキャン実行</button>
+        <button id="apply-all" class="secondary" disabled>一括適用</button>
+        <button id="cancel" class="secondary" disabled>キャンセル</button>
+      </div>
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+      <!-- Progress Section -->
+      <div class="progress-container" id="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">準備中...</div>
+      </div>
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+      <!-- Manual Tools Section -->
+      <div class="section">
+        <h3>手動選択ツール</h3>
+        <button id="apply-selected">選択中のノードに適用</button>
+        
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
+          <label><input type="checkbox" id="manual-normalize-spaces"> スペース正規化</label>
+          <label><input type="checkbox" id="manual-convert-height"> Auto-height変換</label>
+        </div>
+      </div>
 
-</script>
+      <!-- Results Section -->
+      <div class="results-container" id="results-container">
+        <h3>検出結果</h3>
+        <div id="results-summary"></div>
+        <div id="results-list"></div>
+      </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div class="tab-panel" id="panel-settings">
+      <!-- Detection Configuration Section -->
+      <div class="section">
+        <h3>検出設定</h3>
+        
+        <label for="min-chars">最小文字数:</label>
+        <input type="number" id="min-chars" value="20" min="1" max="1000" />
+        
+        <label for="line-break-threshold">改行処理閾値 (コンテナ幅比率):</label>
+        <input type="number" id="line-break-threshold" value="0.4" min="0.1" max="1.0" step="0.1" />
+        
+        <label for="font-width-multiplier">フォント幅係数 (調整用):</label>
+        <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05" />
+        
+        <label for="soft-break-chars">ソフト改行文字 (1行1文字):</label>
+        <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力">​
+\u200B
+&#8203;</textarea>
+
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="detect-auto-width" checked> Auto-width検出</label>
+          <label><input type="checkbox" id="detect-edge-breaking" checked> 右端改行検出</label>
+          <label><input type="checkbox" id="detect-soft-break" checked> ソフト改行検出</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let currentResults = [];
+    let isProcessing = false;
+    
+    // Tab management
+    function switchTab(tabName) {
+      // Remove active classes
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      // Add active classes
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      document.getElementById(`panel-${tabName}`).classList.add('active');
+    }
+    
+    // Configuration management
+    function getConfig() {
+      const softBreakText = document.getElementById('soft-break-chars').value;
+      const softBreakChars = softBreakText.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+      
+      return {
+        minCharacters: parseInt(document.getElementById('min-chars').value),
+        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
+        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
+        softBreakChars: softBreakChars,
+        excludePatterns: [],
+        enabledDetections: [
+          document.getElementById('detect-auto-width').checked ? 'auto-width' : null,
+          document.getElementById('detect-edge-breaking').checked ? 'edge-breaking' : null,
+          document.getElementById('detect-soft-break').checked ? 'soft-break' : null
+        ].filter(Boolean)
+      };
+    }
+
+    // UI State management
+    function setProcessingState(processing) {
+      isProcessing = processing;
+      document.getElementById('scan').disabled = processing;
+      document.getElementById('apply-all').disabled = processing || currentResults.length === 0;
+      document.getElementById('cancel').disabled = !processing;
+      document.getElementById('apply-selected').disabled = processing;
+      
+      document.getElementById('progress-container').style.display = processing ? 'block' : 'none';
+    }
+
+    function updateProgress(progress, message) {
+      document.getElementById('progress-fill').style.width = progress + '%';
+      document.getElementById('progress-text').textContent = message;
+    }
+
+    function showResults(results) {
+      currentResults = results;
+      const container = document.getElementById('results-container');
+      const summary = document.getElementById('results-summary');
+      const list = document.getElementById('results-list');
+      
+      const withIssues = results.filter(r => r.issues.length > 0);
+      summary.innerHTML = `
+        <div class="info-message">
+          ${results.length}ノード検査完了 - ${withIssues.length}ノードで問題検出
+        </div>
+      `;
+      
+      list.innerHTML = '';
+      withIssues.forEach(result => {
+        const item = document.createElement('div');
+        item.className = 'result-item has-issues';
+        item.innerHTML = `
+          <div class="result-node-name">${result.node.name || 'Unnamed'}</div>
+          <div class="result-changes">${result.estimatedChanges}</div>
+        `;
+        list.appendChild(item);
+      });
+      
+      container.style.display = 'block';
+      document.getElementById('apply-all').disabled = withIssues.length === 0;
+    }
+
+    function showError(message) {
+      const container = document.getElementById('results-container');
+      const summary = document.getElementById('results-summary');
+      
+      summary.innerHTML = `<div class="error-message">エラー: ${message}</div>`;
+      container.style.display = 'block';
+    }
+
+    function showWarning(message) {
+      const container = document.getElementById('results-container');
+      const summary = document.getElementById('results-summary');
+      
+      summary.innerHTML = `<div class="warning-message">警告: ${message}</div>`;
+      container.style.display = 'block';
+    }
+
+    // Event listeners
+    document.getElementById('scan').onclick = () => {
+      const config = getConfig();
+      setProcessingState(true);
+      updateProgress(0, 'スキャンを開始しています...');
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'scan',
+          config: config
+        } 
+      }, '*');
+    };
+
+    document.getElementById('apply-all').onclick = () => {
+      if (currentResults.length === 0) return;
+      
+      setProcessingState(true);
+      updateProgress(0, '一括適用を開始しています...');
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'apply-all',
+          results: currentResults
+        } 
+      }, '*');
+    };
+
+    document.getElementById('apply-selected').onclick = () => {
+      const config = getConfig();
+      const manualOptions = {
+        removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
+        normalizeSpaces: document.getElementById('manual-normalize-spaces').checked,
+        convertToAutoHeight: document.getElementById('manual-convert-height').checked
+      };
+      
+      setProcessingState(true);
+      updateProgress(0, '選択ノードを処理中...');
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'apply-selected',
+          config: config,
+          options: manualOptions
+        } 
+      }, '*');
+    };
+
+    document.getElementById('cancel').onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    };
+
+    // Tab event listeners
+    document.getElementById('tab-operations').onclick = () => switchTab('operations');
+    document.getElementById('tab-settings').onclick = () => switchTab('settings');
+
+    // Message handling from plugin
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      switch (msg.type) {
+        case 'progress-update':
+          updateProgress(msg.progress, msg.message);
+          break;
+          
+        case 'scan-complete':
+          setProcessingState(false);
+          showResults(msg.results);
+          break;
+          
+        case 'processing-complete':
+          setProcessingState(false);
+          const successful = msg.results.filter(r => r.success).length;
+          const failed = msg.results.filter(r => !r.success).length;
+          
+          document.getElementById('results-summary').innerHTML = `
+            <div class="info-message">
+              処理完了: ${successful}件成功, ${failed}件失敗
+            </div>
+          `;
+          break;
+          
+        case 'error':
+          setProcessingState(false);
+          showError(msg.message);
+          break;
+          
+        case 'warning':
+          showWarning(msg.message);
+          break;
+          
+        case 'cancelled':
+          setProcessingState(false);
+          updateProgress(0, 'キャンセルされました');
+          break;
+      }
+    };
+
+    // Initialize
+    setProcessingState(false);
+  </script>
+</body>
+</html>
