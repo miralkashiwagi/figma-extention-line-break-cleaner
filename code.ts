@@ -882,6 +882,7 @@ class BatchProcessor {
     node: TextNode,
     forceChanges?: {
       removeLineBreaks?: boolean;
+      convertSoftBreaks?: boolean;
     }
   ): Promise<ProcessingResult> {
     try {
@@ -908,6 +909,12 @@ class BatchProcessor {
             console.log('auto-width要素をauto-heightに変換');
             changes.newAutoResize = 'HEIGHT';
           }
+        }
+
+        // ソフト改行変換を改行除去の後に実行
+        if (forceChanges.convertSoftBreaks) {
+          console.log('ソフト改行変換を実行');
+          processedText = this.processor['convertSoftBreaksToHard'](processedText);
         }
 
         if (processedText !== node.characters) {
@@ -1001,7 +1008,7 @@ class BatchProcessor {
 const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 20,
   lineBreakThreshold: 0.4, // コンテナ幅40%以上の行で改行処理（検出・削除）
-  softBreakChars: ['​', '\u200B', '&#8203;'],
+  softBreakChars: ['\u2028'],
   excludePatterns: [],
   enabledDetections: ['auto-width', 'edge-breaking', 'soft-break'],
   fontWidthMultiplier: 1.0 // 実測値に基づく初期値
@@ -1170,7 +1177,8 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
       });
       
       const result = await currentProcessor.processIndividualNode(node, {
-        removeLineBreaks: options.removeLineBreaks
+        removeLineBreaks: options.removeLineBreaks,
+        convertSoftBreaks: options.convertSoftBreaks
       });
       
       processResults.push(result);

@@ -236,6 +236,7 @@
         
         <div class="checkbox-group">
           <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
+          <label><input type="checkbox" id="manual-convert-soft-breaks" checked> ソフト改行は改行に変換</label>
         </div>
       </div>
 
@@ -267,9 +268,7 @@
         <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05" />
         
         <label for="soft-break-chars">ソフト改行文字 (1行1文字):</label>
-        <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力">​
-\u200B
-&#8203;</textarea>
+        <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力">\u2028</textarea>
 
         <div class="checkbox-group">
           <label><input type="checkbox" id="detect-auto-width" checked> Auto-width検出</label>
@@ -490,7 +489,8 @@
     document.getElementById('apply-selected').onclick = () => {
       const config = getConfig();
       const manualOptions = {
-        removeLineBreaks: document.getElementById('manual-remove-breaks').checked
+        removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
+        convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked
       };
       
       parent.postMessage({ 
