@@ -1519,6 +1519,12 @@ figma.on('selectionchange', () => {
   }
 });
 
+// 選択変更イベントを監視してスキャンモード情報を自動更新
+figma.on('selectionchange', () => {
+  // スキャンモード情報を自動更新
+  handleGetScanMode();
+});
+
 // Initialize with saved config when plugin loads
 loadConfig().then(config => {
   // Plugin is ready

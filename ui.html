@@ -665,8 +665,48 @@
       }
     }, '*');
 
-    // 定期的にスキャンモードを更新（選択状況の変化を検知）
-    setInterval(updateScanModeInfo, 1000);
+    // パフォーマンス最適化：イベントベースの更新
+    let scanModeUpdateInterval = null;
+    let isUIVisible = true;
+
+    // UIがアクティブな時のみ更新
+    function startScanModeUpdates() {
+      if (scanModeUpdateInterval) return;
+
+      // 長い間隔でポーリング（フォールバック用）
+      scanModeUpdateInterval = setInterval(() => {
+        if (isUIVisible) {
+          updateScanModeInfo();
+        }
+      }, 10000);
+    }
+
+    function stopScanModeUpdates() {
+      if (scanModeUpdateInterval) {
+        clearInterval(scanModeUpdateInterval);
+        scanModeUpdateInterval = null;
+      }
+    }
+
+    // ウィンドウのフォーカス状態を監視
+    window.addEventListener('focus', () => {
+      isUIVisible = true;
+      updateScanModeInfo(); // 即座に更新
+      // startScanModeUpdates();
+    });
+
+    window.addEventListener('blur', () => {
+      isUIVisible = false;
+      stopScanModeUpdates();
+    });
+
+    // ユーザーがUIを操作した時に更新
+    document.addEventListener('click', () => {
+      updateScanModeInfo();
+    });
+
+    // 初回開始
+    // startScanModeUpdates();
   </script>
 </body>
 
