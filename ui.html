@@ -424,10 +424,6 @@
       <label for="soft-break-chars">ソフト改行文字:</label>
       <textarea class="textarea-field" id="soft-break-chars" rows="2" placeholder="改行文字を入力"> </textarea>
     </div>
-    <div class="setting">
-      <label class="option-label"><input type="checkbox" class="checkbox" id="detect-edge-breaking" checked> 右端改行検出</label>
-      <label class="option-label"><input type="checkbox" class="checkbox" id="detect-soft-break" checked> ソフト改行検出</label>
-    </div>
   </div>
 
   <script>
@@ -520,9 +516,7 @@
         softBreakChars: softBreakChars,
         excludePatterns: [],
         enabledDetections: [
-          'auto-width', // 常に有効
-          document.getElementById('detect-edge-breaking').checked ? 'edge-breaking' : null,
-          document.getElementById('detect-soft-break').checked ? 'soft-break' : null
+          'auto-width', 'edge-breaking', 'soft-break'//常に3つ有効
         ].filter(Boolean)
       };
     }
@@ -760,10 +754,6 @@
       const softBreakChars = config.softBreakChars || ['\u2028'];
       // ソフト改行文字を適切に表示（改行で区切らない）
       document.getElementById('soft-break-chars').value = softBreakChars.join('');
-
-      const enabledDetections = config.enabledDetections || ['auto-width', 'edge-breaking', 'soft-break'];
-      document.getElementById('detect-edge-breaking').checked = enabledDetections.includes('edge-breaking');
-      document.getElementById('detect-soft-break').checked = enabledDetections.includes('soft-break');
     }
 
     // 初期設定を適用
