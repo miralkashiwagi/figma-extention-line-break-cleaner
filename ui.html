@@ -110,6 +110,20 @@
       border-radius: 4px;
       margin-bottom: 4px;
       font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .result-item:hover {
+      background: #F9FAFB;
+      border-color: #D1D5DB;
+    }
+    
+    .result-item.selected {
+      background: #EBF8FF;
+      border-color: #18A0FB;
     }
     
     .result-item.has-issues {
@@ -210,6 +224,17 @@
     .tab-panel.active {
       display: block;
     }
+    
+    #results-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    #results-controls button {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
   </style>
 </head>
 <body>
@@ -224,9 +249,8 @@
     <div class="tab-panel active" id="panel-operations">
       <!-- Actions Section -->
       <div class="section">
-        <h3>スキャン・適用</h3>
+        <h3>スキャン</h3>
         <button id="scan">スキャン実行</button>
-        <button id="apply-all" class="secondary" disabled>一括適用</button>
         <button id="cancel" class="secondary" disabled>キャンセル</button>
       </div>
 
@@ -252,6 +276,10 @@
       <div class="results-container" id="results-container">
         <h3>検出結果</h3>
         <div id="results-summary"></div>
+        <div id="results-controls">
+          <button id="select-all" class="secondary">すべて選択</button>
+          <button id="select-none" class="secondary">選択解除</button>
+        </div>
         <div id="results-list"></div>
       </div>
     </div>
@@ -289,6 +317,7 @@
     // State management
     let currentResults = [];
     let isProcessing = false;
+    let selectedNodeIds = new Set();
     
     // Tab management
     function switchTab(tabName) {
@@ -326,9 +355,14 @@
     function setProcessingState(processing) {
       isProcessing = processing;
       document.getElementById('scan').disabled = processing;
-      document.getElementById('apply-all').disabled = processing || currentResults.length === 0;
       document.getElementById('cancel').disabled = !processing;
       document.getElementById('apply-selected').disabled = processing;
+      
+      // 選択関連ボタンの状態
+      const selectAllBtn = document.getElementById('select-all');
+      const selectNoneBtn = document.getElementById('select-none');
+      if (selectAllBtn) selectAllBtn.disabled = processing || currentResults.length === 0;
+      if (selectNoneBtn) selectNoneBtn.disabled = processing;
       
       document.getElementById('progress-container').style.display = processing ? 'block' : 'none';
     }
@@ -340,6 +374,8 @@
 
     function showResults(results) {
       currentResults = results;
+      selectedNodeIds.clear();
+      
       const container = document.getElementById('results-container');
       const summary = document.getElementById('results-summary');
       const list = document.getElementById('results-list');
@@ -355,15 +391,43 @@
       withIssues.forEach(result => {
         const item = document.createElement('div');
         item.className = 'result-item has-issues';
+        item.dataset.nodeId = result.node.id;
         item.innerHTML = `
-          <div class="result-node-name">${result.node.name || 'Unnamed'}</div>
-          <div class="result-changes">${result.estimatedChanges}</div>
+          <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
+          <div class="result-content">
+            <div class="result-node-name">${result.node.name || 'Unnamed'}</div>
+            <div class="result-changes">${result.estimatedChanges}</div>
+          </div>
         `;
+        
+        // クリックイベントを追加
+        item.addEventListener('click', (e) => {
+          if (e.target.type !== 'checkbox') {
+            const checkbox = item.querySelector('.node-checkbox');
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        });
+        
+        // チェックボックスのchangeイベント
+        const checkbox = item.querySelector('.node-checkbox');
+        checkbox.addEventListener('change', (e) => {
+          const nodeId = e.target.dataset.nodeId;
+          if (e.target.checked) {
+            selectedNodeIds.add(nodeId);
+            item.classList.add('selected');
+          } else {
+            selectedNodeIds.delete(nodeId);
+            item.classList.remove('selected');
+          }
+          updateSelectionAndFocus();
+        });
+        
         list.appendChild(item);
       });
       
       container.style.display = 'block';
-      document.getElementById('apply-all').disabled = withIssues.length === 0;
+      setProcessingState(false);
     }
 
     function showError(message) {
@@ -382,6 +446,38 @@
       container.style.display = 'block';
     }
 
+    // 選択とフォーカス機能
+    function updateSelectionAndFocus() {
+      const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
+      
+      // Figmaでノードを選択
+      if (selectedNodes.length > 0) {
+        parent.postMessage({
+          pluginMessage: {
+            type: 'select-nodes',
+            nodeIds: Array.from(selectedNodeIds)
+          }
+        }, '*');
+      }
+    }
+
+    // すべて選択/解除機能
+    function selectAllNodes() {
+      const checkboxes = document.querySelectorAll('.node-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+      });
+    }
+
+    function selectNoneNodes() {
+      const checkboxes = document.querySelectorAll('.node-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change'));
+      });
+    }
+
     // Event listeners
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
@@ -396,19 +492,9 @@
       }, '*');
     };
 
-    document.getElementById('apply-all').onclick = () => {
-      if (currentResults.length === 0) return;
-      
-      setProcessingState(true);
-      updateProgress(0, '一括適用を開始しています...');
-      
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'apply-all',
-          results: currentResults
-        } 
-      }, '*');
-    };
+    // 選択ボタンのイベントリスナー
+    document.getElementById('select-all').onclick = selectAllNodes;
+    document.getElementById('select-none').onclick = selectNoneNodes;
 
     document.getElementById('apply-selected').onclick = () => {
       const config = getConfig();
@@ -449,18 +535,6 @@
         case 'scan-complete':
           setProcessingState(false);
           showResults(msg.results);
-          break;
-          
-        case 'processing-complete':
-          setProcessingState(false);
-          const successful = msg.results.filter(r => r.success).length;
-          const failed = msg.results.filter(r => !r.success).length;
-          
-          document.getElementById('results-summary').innerHTML = `
-            <div class="info-message">
-              処理完了: ${successful}件成功, ${failed}件失敗
-            </div>
-          `;
           break;
           
         case 'error':

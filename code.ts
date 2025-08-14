@@ -1081,9 +1081,18 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
 
 // Handle apply all operation
 async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
-  if (isProcessing || !currentProcessor) return;
+  console.log('=== 一括適用開始 ===');
+  console.log('受信した結果数:', results.length);
+  console.log('現在処理中:', isProcessing);
+  console.log('プロセッサ存在:', !!currentProcessor);
+  
+  if (isProcessing || !currentProcessor) {
+    console.log('処理をスキップ - 既に処理中またはプロセッサなし');
+    return;
+  }
   
   isProcessing = true;
+  console.log('処理開始');
   
   try {
     const processResults = await currentProcessor.processNodes(results, onProgress);
@@ -1162,6 +1171,47 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
   }
 }
 
+// Handle node selection
+async function handleSelectNodes(nodeIds: string[]): Promise<void> {
+  try {
+    console.log('選択するノードID:', nodeIds);
+    
+    // ノードIDから実際のノードオブジェクトを取得
+    const nodesToSelect: SceneNode[] = [];
+    
+    for (const nodeId of nodeIds) {
+      try {
+        const node = await figma.getNodeByIdAsync(nodeId);
+        if (node && node.type === 'TEXT') {
+          nodesToSelect.push(node);
+          console.log('ノード選択:', node.name || 'Unnamed', node.id);
+        } else {
+          console.warn('ノードがテキストではない:', nodeId, node?.type);
+        }
+      } catch (nodeError) {
+        console.warn('ノードが見つからない:', nodeId, nodeError);
+      }
+    }
+    
+    // Figmaで選択
+    if (nodesToSelect.length > 0) {
+      figma.currentPage.selection = nodesToSelect;
+      
+      // 最初のノードにズーム
+      if (nodesToSelect.length === 1) {
+        figma.viewport.scrollAndZoomIntoView([nodesToSelect[0]]);
+      }
+      
+      console.log(`${nodesToSelect.length}個のノードを選択しました`);
+    } else {
+      console.warn('選択可能なノードがありませんでした');
+    }
+    
+  } catch (error) {
+    console.error('ノード選択エラー:', error);
+  }
+}
+
 // Handle cancel operation
 function handleCancel(): void {
   if (currentProcessor) {
@@ -1176,18 +1226,29 @@ function handleCancel(): void {
 
 // Message handler from UI
 figma.ui.onmessage = async (msg: UIMessage) => {
+  console.log('=== 受信メッセージ ===');
+  console.log('タイプ:', msg.type);
+  console.log('メッセージ内容:', msg);
+  
   try {
     switch (msg.type) {
       case 'scan':
+        console.log('スキャン処理開始');
         await handleScan(msg.config || DEFAULT_CONFIG);
         break;
         
       case 'apply-all':
+        console.log('一括適用処理開始');
         await handleApplyAll(msg.results);
         break;
         
       case 'apply-selected':
         await handleApplySelected(msg.config || DEFAULT_CONFIG, msg.options);
+        break;
+        
+      case 'select-nodes':
+        console.log('ノード選択要求:', msg.nodeIds);
+        await handleSelectNodes(msg.nodeIds);
         break;
         
       case 'cancel':
