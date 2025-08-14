@@ -1317,17 +1317,23 @@ async function handleSelectNodes(nodeIds: string[]): Promise<void> {
 // Get current selection (only for scanned nodes)
 function handleGetCurrentSelection(): void {
   const selection = figma.currentPage.selection;
-  const selectedNodeIds = selection
+  
+  // スキャン結果にあるノードの選択状態
+  const scannedSelectedNodeIds = selection
     .filter(node => node.type === 'TEXT' && scannedNodeIds.has(node.id))
     .map(node => node.id);
 
-  // スキャン結果があるときは常にUIに通知（選択解除も含む）
-  if (scannedNodeIds.size > 0) {
-    sendToUI({
-      type: 'selection-changed',
-      selectedNodeIds: selectedNodeIds
-    });
-  }
+  // 手動選択されたテキストノード（スキャン結果にないもの）
+  const manualSelectedTextNodes = selection
+    .filter(node => node.type === 'TEXT' && !scannedNodeIds.has(node.id));
+
+  // UIに選択状態を通知（スキャン結果のノード + 手動選択の情報）
+  sendToUI({
+    type: 'selection-changed',
+    selectedNodeIds: scannedSelectedNodeIds,
+    hasManualSelection: manualSelectedTextNodes.length > 0,
+    manualSelectionCount: manualSelectedTextNodes.length
+  });
 }
 
 function handleGetScanMode(): void {
@@ -1460,16 +1466,11 @@ figma.ui.onmessage = async (msg: UIMessage) => {
   }
 };
 
-// Selection change listener - only for scanned nodes
+// Selection change listener - 常に選択状態を監視
 figma.on('selectionchange', () => {
-  // スキャン結果があるときのみ選択状態を監視
-  if (scannedNodeIds.size > 0) {
-    handleGetCurrentSelection();
-  }
-});
-
-// 選択変更イベントを監視してスキャンモード情報を自動更新
-figma.on('selectionchange', () => {
+  // 選択状態を常に監視（スキャン結果の有無に関わらず）
+  handleGetCurrentSelection();
+  
   // スキャンモード情報を自動更新
   handleGetScanMode();
 });

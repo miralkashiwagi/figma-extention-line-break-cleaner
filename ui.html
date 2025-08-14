@@ -2,709 +2,720 @@
 <html>
 
 <head>
-    <style>
-        :root {
-            /* Minimal color palette */
-            --color-white: #FFFFFF;
-            --color-gray-200: #E2E8F0;
-            --color-gray-400: #94A3B8;
-            --color-gray-600: #475569;
-            --color-gray-900: #0F172A;
-            --color-blue-500: #2563EB;
-            --color-blue-600: #1D4ED8;
+  <style>
+    :root {
+      /* Minimal color palette */
+      --color-white: #FFFFFF;
+      --color-gray-200: #E2E8F0;
+      --color-gray-400: #94A3B8;
+      --color-gray-600: #475569;
+      --color-gray-900: #0F172A;
+      --color-blue-500: #2563EB;
+      --color-blue-600: #1D4ED8;
+      --color-red-500: #EF4444;
 
-            --color-orange-500: #F59E0B;
-            --color-red-500: #EF4444;
+      /* Typography scale */
+      --font-size-xs: 11px;
+      --font-size-sm: 12px;
+      --font-size-base: 13px;
 
-            /* Typography scale */
-            --font-size-xs: 11px;
-            --font-size-sm: 12px;
-            --font-size-base: 13px;
-            --font-size-lg: 14px;
-            --font-size-xl: 16px;
+      /* Spacing scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
 
-            /* Spacing scale */
-            --space-1: 4px;
-            --space-2: 8px;
-            --space-3: 12px;
-            --space-4: 16px;
-            --space-5: 20px;
-            --space-6: 24px;
+      /* Border radius */
+      --radius-sm: 4px;
+      --radius-md: 6px;
 
-            /* Border radius */
-            --radius-sm: 4px;
-            --radius-md: 6px;
-            --radius-lg: 8px;
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 
-            /* Shadows */
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      /* Focus ring */
+      --focus-ring: 0 0 0 2px var(--color-blue-500);
+    }
 
-            /* Focus ring */
-            --focus-ring: 0 0 0 2px var(--color-white);
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        * {
-            box-sizing: border-box;
-        }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: var(--space-4);
+      font-size: var(--font-size-base);
+      line-height: 1.4;
+      color: var(--color-gray-900);
+      background-color: var(--color-white);
+    }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: var(--space-4);
-            font-size: var(--font-size-base);
-            line-height: 1.5;
-            color: var(--color-gray-900);
-            background-color: var(--color-white);
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
+    /* Step Container */
+    .step {
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--color-gray-200);
+    }
 
-        /* Layout Components */
-        .section {
-            margin-bottom: var(--space-6);
-            padding-bottom: var(--space-5);
-            border-bottom: 1px solid var(--color-gray-200);
-        }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-3);
+    }
 
-        .section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
+    .step-number {
+      background: var(--color-blue-500);
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
 
-        .row {
-            display: flex;
-            gap: var(--space-3);
-            align-items: flex-start;
-        }
+    .step-number.inactive {
+      background: var(--color-gray-400);
+    }
 
-        /* Typography */
-        h3 {
-            margin: 0 0 var(--space-3) 0;
-            font-size: var(--font-size-lg);
-            font-weight: 600;
-            color: var(--color-gray-900);
-            letter-spacing: -0.025em;
-        }
+    .step-title {
+      font-weight: 500;
+      font-size: var(--font-size-base);
+    }
 
-        h4 {
-            margin: var(--space-4) 0 var(--space-2) 0;
-            font-size: var(--font-size-base);
-            font-weight: 500;
-            color: var(--color-gray-900);
-        }
+    /* Scan section */
+    .scan-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+    }
 
-        /* Form Elements */
-        label {
-            display: block;
-            margin: var(--space-3) 0 var(--space-2);
-            font-size: var(--font-size-sm);
-            font-weight: 500;
-            color: var(--color-gray-600);
-        }
+    .scan-mode {
+      font-size: var(--font-size-xs);
+      color: var(--color-gray-600);
+      margin-bottom: var(--space-2);
+    }
 
-        input[type="number"],
-        textarea {
-            width: 100%;
-            padding: var(--space-2) var(--space-3);
-            border: 1px solid var(--color-gray-200);
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-sm);
-            color: var(--color-gray-900);
-            background-color: var(--color-white);
-            transition: all 0.2s ease;
-        }
+    .manual-text {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-900);
+    }
 
-        input[type="number"]:focus,
-        textarea:focus {
-            border-color: var(--color-blue-500);
-            box-shadow: var(--focus-ring);
-        }
+    /* Buttons */
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-gray-200);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      background: var(--color-white);
+      color: var(--color-gray-600);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 28px;
+    }
 
-        input[type="number"]:hover,
-        textarea:hover {
-            border-color: var(--color-gray-400);
-        }
+    button:hover {
+      border-color: var(--color-gray-400);
+      transform: translateY(-1px);
+    }
 
-        /* Base Button Styles */
-        button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: var(--space-2) var(--space-4);
-            border: 1px solid var(--color-gray-200);
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-sm);
-            font-weight: 500;
-            background: var(--color-white);
-            color: var(--color-gray-600);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            min-height: 32px;
-        }
+    .btn-primary {
+      background: var(--color-blue-500);
+      color: white;
+      border-color: var(--color-blue-500);
+      width: 100%;
+      padding: var(--space-3) var(--space-4);
+    }
 
-        button:hover:not(:disabled,.active) {
-            background: var(--color-white);
-            border-color: var(--color-gray-400);
-            color: var(--color-gray-900);
-        }
+    .btn-primary:hover {
+      background: var(--color-blue-600);
+      border-color: var(--color-blue-600);
+    }
 
-        button:focus {
-            outline: none;
-            box-shadow: var(--focus-ring);
-        }
+    .btn-small {
+      font-size: var(--font-size-xs);
+      padding: var(--space-1) var(--space-2);
+      min-height: 24px;
+    }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
+    /* Options */
+    .options {
+      margin: var(--space-2) 0;
+    }
 
-        /* Primary Button Override */
-        button[id="scan"],
-        button[id="apply-selected"] {
-            background: var(--color-blue-500);
-            color: white;
-            border-color: var(--color-blue-500);
-        }
+    .options label {
+      display: flex;
+      align-items: center;
+      font-size: var(--font-size-sm);
+      margin: var(--space-1) 0;
+      cursor: pointer;
+    }
 
-        button[id="scan"]:hover:not(:disabled),
-        button[id="apply-selected"]:hover:not(:disabled) {
-            background: var(--color-blue-600);
-            border-color: var(--color-blue-600);
-            color: white;
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
-        button[id="apply-selected"]:hover:not(:disabled){}
+    input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin-right: var(--space-2);
+      accent-color: var(--color-blue-500);
+    }
 
-        /* Button Groups */
-        .row button + button {
-            margin-left: var(--space-2);
-        }
+    /* Results */
+    .results {
+      margin-top: var(--space-3);
+    }
 
-        /* Form Controls */
-        .checkbox-group {
-            margin: var(--space-1) 0;
-        }
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-2);
+    }
 
-        .checkbox-group label {
-            display: flex;
-            align-items: center;
-            margin: 0;
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            padding: var(--space-1);
-            border-radius: var(--radius-sm);
-            transition: background-color 0.2s ease;
-        }
+    .results-count {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-600);
+    }
 
-        .checkbox-group label:hover {
-            background-color: var(--color-white);
-        }
+    .results-controls {
+      display: none;
+      gap: var(--space-1);
+    }
 
-        input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            margin-right: var(--space-2);
-            accent-color: var(--color-blue-500);
-            cursor: pointer;
-        }
+    .result-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      padding: var(--space-2);
+      border: 1px solid var(--color-gray-200);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-1);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
 
-        /* Message States */
-        .message {
-            font-size: var(--font-size-sm);
-            font-weight: 500;
-            margin: var(--space-2) 0;
-            border-radius: var(--radius-md);
-        }
+    .result-item:hover {
+      border-color: var(--color-gray-400);
+      box-shadow: var(--shadow-sm);
+    }
 
-        .error-message { color: var(--color-red-500); }
-        .warning-message { color: var(--color-orange-500); }
-        .info-message { color: var(--color-blue-600); }
+    .result-item.selected {
+      border-color: var(--color-blue-500);
+      background: #f8faff;
+    }
 
-        /* Tab Navigation */
-        .tab-container {
-            margin-bottom: var(--space-5);
-        }
+    .result-content {
+      flex: 1;
+      min-width: 0;
+    }
 
-        .tab-buttons {
-            display: flex;
-            background-color: var(--color-gray-200);
-            border-radius: var(--radius-lg);
-            padding: var(--space-1);
-            gap: var(--space-1);
-            border: 1px solid var(--color-gray-200);
-        }
+    .result-text {
+      font-weight: 500;
+      margin-bottom: var(--space-1);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-        .tab-button {
-            flex: 1;
-            padding: var(--space-2) var(--space-4);
-            background: transparent;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            color: var(--color-gray-600);
-            transition: all 0.2s ease;
-        }
+    .result-changes {
+      color: var(--color-gray-600);
+      font-size: var(--font-size-xs);
+    }
 
-        .tab-button.active {
-            background: var(--color-blue-500);
-            color: white;
-        }
+    /* Selection status */
+    .selection-status {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-600);
+      margin-bottom: var(--space-2);
+      text-align: center;
+    }
 
-        .tab-button:hover:not(.active) {
-            background: var(--color-white);
-            color: var(--color-blue-500);
-        }
+    .selection-status.has-selection {
+      color: var(--color-blue-600);
+      font-weight: 500;
+    }
 
-        .tab-button:focus {
-            outline: none;
-            box-shadow: var(--focus-ring);
-        }
+    /* Tab Navigation */
+    .tabs {
+      display: flex;
+      background: var(--color-gray-200);
+      border-radius: var(--radius-sm);
+      padding: var(--space-1);
+      margin-bottom: var(--space-4);
+    }
 
-        .tab-panel {
-            display: none;
-            margin-top: var(--space-4);
-        }
+    .tab {
+      flex: 1;
+      padding: var(--space-2);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      color: var(--color-gray-600);
+      transition: all 0.15s ease;
+    }
 
-        .tab-panel.active {
-            display: block;
-        }
+    .tab.active {
+      background: var(--color-white);
+      color: var(--color-gray-900);
+      box-shadow: var(--shadow-sm);
+    }
 
-        /* Results Container */
-        .results-container {
-            margin-top: var(--space-5);
-        }
+    .tab-panel {
+      display: none;
+    }
 
-        #results-controls {
-            display: none;
-            gap: var(--space-2);
-            margin-bottom: var(--space-4);
-            padding: var(--space-2);
-            background-color: var(--color-gray-200);
-            border-radius: var(--radius-lg);
-        }
+    .tab-panel.active {
+      display: block;
+    }
 
-        #results-controls button {
-            font-size: var(--font-size-xs);
-            padding: var(--space-1) var(--space-3);
-            min-height: 28px;
-        }
+    /* Settings */
+    .setting {
+      margin-bottom: var(--space-3);
+    }
 
-        /* Result Items */
-        .result-item {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-2);
-            padding: var(--space-3) var(--space-2);
-            border: 1px solid var(--color-gray-200);
-            border-radius: var(--radius-lg);
-            margin-bottom: var(--space-2);
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background-color: var(--color-white);
-        }
+    .setting label {
+      display: block;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--color-gray-600);
+      margin-bottom: var(--space-1);
+    }
 
-        .result-item:hover {
-            background-color: var(--color-white);
-            border-color: var(--color-gray-400);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
-        }
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: var(--space-2);
+      border: 1px solid var(--color-gray-200);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+    }
 
-        .result-item.selected {
-            background-color: var(--color-white);
-            border-color: var(--color-blue-500);
-            box-shadow: 0 0 0 1px var(--color-white);
-        }
+    input[type="number"]:focus,
+    textarea:focus {
+      border-color: var(--color-blue-500);
+      outline: none;
+    }
 
-        .result-item.has-issues.selected {
-            border-color: var(--color-blue-500);
-            background-color: var(--color-white);
-        }
+    /* Messages */
+    .info {
+      color: var(--color-gray-600);
+      font-size: var(--font-size-sm);
+    }
 
-        .result-content {
-            flex: 1;
-            min-width: 0;
-        }
+    .error {
+      color: var(--color-red-500);
+      font-size: var(--font-size-sm);
+    }
 
-        .result-node-name {
-            font-weight: 500;
-            color: var(--color-gray-900);
-            margin-bottom: var(--space-1);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    /* Legacy compatibility styles */
+    .info-message {
+      color: var(--color-gray-600);
+      font-size: var(--font-size-sm);
+    }
 
-        .result-changes {
-            color: var(--color-gray-600);
-            font-size: var(--font-size-xs);
-            line-height: 1.4;
-        }
+    .error-message {
+      color: var(--color-red-500);
+      font-size: var(--font-size-sm);
+    }
 
-        /* Accessibility */
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
+    .warning-message {
+      color: var(--color-red-500);
+      font-size: var(--font-size-sm);
+    }
 
-        *:focus-visible {
-            outline: 2px solid var(--color-blue-500);
-            outline-offset: 2px;
-        }
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
 
-        .result-item:focus-within {
-            box-shadow: var(--focus-ring);
-        }
-    </style>
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    *:focus-visible {
+      outline: 2px solid var(--color-blue-500);
+      outline-offset: 2px;
+    }
+
+    .result-item:focus-within {
+      box-shadow: var(--focus-ring);
+    }
+  </style>
 </head>
 
 <body>
-<!-- Tab Navigation -->
-<div class="tab-container">
-    <div class="tab-buttons">
-        <button class="tab-button active" id="tab-operations">操作</button>
-        <button class="tab-button" id="tab-settings">設定</button>
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <button class="tab active" id="tab-operations">操作</button>
+    <button class="tab" id="tab-settings">設定</button>
+  </div>
+
+  <!-- Operations Panel -->
+  <div class="tab-panel active" id="panel-operations">
+    <!-- Step 1: テキスト選択 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">テキストを選択</div>
+      </div>
+      <div class="scan-mode" id="scan-mode-info">スキャンモード: ページ全体</div>
+      <div class="scan-row">
+        <button id="scan">スキャン実行</button>
+        <span class="manual-text">or 手動選択</span>
+      </div>
     </div>
 
-    <!-- Operations Panel -->
-    <div class="tab-panel active" id="panel-operations">
-        <!-- Actions Section -->
-        <div class="section">
-            <h3>スキャン or 選択に適用</h3>
-            <div id="scan-mode-info" class="info-message">スキャンモード: ページ全体</div>
-            <div class="row">
-                <div>
-                    <button id="scan">スキャン実行</button>
-                </div>
-                <div>
-                    <button id="apply-selected">選択中のノードに適用</button>
-                </div>
-            </div>
-            <h4>適用内容</h4>
-            <div class="checkbox-group">
-                <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
-                <label><input type="checkbox" id="manual-convert-soft-breaks" checked> ソフト改行は改行に変換</label>
-            </div>
-        </div>
-
-        <!-- Results Section -->
-        <div class="results-container" id="results-container">
-            <h3>検出結果</h3>
-            <div id="results-summary">
-                <div class="info-message">スキャン実行すると、結果が表示されます。<br>または任意のテキストを手動で選択します。</div>
-            </div>
-            <div id="results-controls" style="display: none;">
-                <button id="select-all" class="secondary">すべて選択</button>
-                <button id="select-none" class="secondary">選択解除</button>
-                <button id="clear-results" class="secondary">検出をクリア</button>
-            </div>
-            <div id="results-list"></div>
-        </div>
+    <!-- Step 2: クリーニング実行 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-number inactive" id="step-2-number">2</div>
+        <div class="step-title">クリーニング実行</div>
+      </div>
+      <div class="options">
+        <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
+        <label><input type="checkbox" id="manual-convert-soft-breaks" checked> ソフト改行は改行に変換</label>
+      </div>
+      <div class="selection-status" id="selection-status">テキストを選択してください</div>
+      <button id="apply-selected" class="btn-primary">選択したテキストをクリーニング</button>
     </div>
 
-    <!-- Settings Panel -->
-    <div class="tab-panel" id="panel-settings">
-        <!-- Detection Configuration Section -->
-        <div class="section">
-            <h3>検出設定</h3>
-
-            <label for="min-chars">スキャン対象の最小文字数:</label>
-            <input type="number" id="min-chars" value="20" min="1" max="1000"/>
-
-            <label for="line-break-threshold">改行処理閾値 (コンテナ幅比率):</label>
-            <input type="number" id="line-break-threshold" value="0.8" min="0.1" max="1.0" step="0.1"/>
-
-            <label for="font-width-multiplier">改行処理計算用フォント幅係数:</label>
-            <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05"/>
-
-            <label for="soft-break-chars">ソフト改行文字 (1行1文字):</label>
-            <textarea id="soft-break-chars" rows="3" placeholder="改行文字を1行に1つずつ入力"> </textarea>
-
-            <div class="checkbox-group">
-                <label><input type="checkbox" id="detect-edge-breaking" checked> 右端改行検出</label>
-                <label><input type="checkbox" id="detect-soft-break" checked> ソフト改行検出</label>
-            </div>
+    <!-- 検出結果 -->
+    <div class="results" id="results-container">
+      <div id="results-summary">
+        <div class="info"></div>
+      </div>
+      <div class="results-header" id="results-header" style="display: none;">
+        <span class="results-count" id="results-count"></span>
+        <div class="results-controls" id="results-controls">
+          <button id="select-all" class="btn-small">全選択</button>
+          <button id="select-none" class="btn-small">解除</button>
+          <button id="clear-results" class="btn-small">クリア</button>
         </div>
+      </div>
+      <div id="results-list"></div>
     </div>
-</div>
+  </div>
 
-<script>
+  <!-- Settings Panel -->
+  <div class="tab-panel" id="panel-settings">
+    <div class="setting">
+      <label for="min-chars">スキャン対象の最小文字数:</label>
+      <input type="number" id="min-chars" value="20" min="1" max="1000" />
+    </div>
+    <div class="setting">
+      <label for="line-break-threshold">改行処理閾値:</label>
+      <input type="number" id="line-break-threshold" value="0.8" min="0.1" max="1.0" step="0.1" />
+    </div>
+    <div class="setting">
+      <label for="font-width-multiplier">フォント幅係数:</label>
+      <input type="number" id="font-width-multiplier" value="1.0" min="0.5" max="1.5" step="0.05" />
+    </div>
+    <div class="setting">
+      <label for="soft-break-chars">ソフト改行文字:</label>
+      <textarea id="soft-break-chars" rows="2" placeholder="改行文字を入力"> </textarea>
+    </div>
+    <div class="setting">
+      <label><input type="checkbox" id="detect-edge-breaking" checked> 右端改行検出</label>
+      <label><input type="checkbox" id="detect-soft-break" checked> ソフト改行検出</label>
+    </div>
+  </div>
+
+  <script>
     // State management
     let currentResults = [];
     let isProcessing = false;
     let selectedNodeIds = new Set();
+    let hasManualSelection = false; // 手動選択の状態を追跡
 
     // Tab management
     function switchTab(tabName) {
-        // Remove active classes
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      // Remove active classes
+      document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
 
-        // Add active classes
-        document.getElementById(`tab-${tabName}`).classList.add('active');
-        document.getElementById(`panel-${tabName}`).classList.add('active');
+      // Add active classes
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      document.getElementById(`panel-${tabName}`).classList.add('active');
+    }
+
+    // Update step 2 state
+    function updateStep2State() {
+      const hasSelection = selectedNodeIds.size > 0 || hasManualSelection;
+      const step2Number = document.getElementById('step-2-number');
+      const selectionStatus = document.getElementById('selection-status');
+
+
+
+      if (hasSelection) {
+        step2Number.classList.remove('inactive');
+
+        if (selectedNodeIds.size > 0 && hasManualSelection) {
+          selectionStatus.textContent = `${selectedNodeIds.size}つのスキャン結果 + 手動選択のテキストに適用`;
+        } else if (selectedNodeIds.size > 0) {
+          selectionStatus.textContent = `${selectedNodeIds.size}つのテキストを選択中`;
+        } else if (hasManualSelection) {
+          selectionStatus.textContent = 'テキストを手動選択中';
+        }
+        selectionStatus.classList.add('has-selection');
+      } else {
+        step2Number.classList.add('inactive');
+        selectionStatus.textContent = 'テキストを選択してください';
+        selectionStatus.classList.remove('has-selection');
+      }
+
+
     }
 
     // Configuration management
     function getConfig() {
-        const softBreakText = document.getElementById('soft-break-chars').value;
+      const softBreakText = document.getElementById('soft-break-chars').value;
 
-        // ソフト改行文字の特別処理
-        let softBreakChars = [];
+      // ソフト改行文字の特別処理
+      let softBreakChars = [];
 
-        // テキストエリアの値を文字単位で処理
-        for (let i = 0; i < softBreakText.length; i++) {
-            const char = softBreakText[i];
-            const code = char.charCodeAt(0);
+      // テキストエリアの値を文字単位で処理
+      for (let i = 0; i < softBreakText.length; i++) {
+        const char = softBreakText[i];
+        const code = char.charCodeAt(0);
 
-            // ソフト改行文字（LSEP, PSEP）や特殊文字を検出
-            if (code === 8232 || code === 8233 || code === 8203 || code === 65279) {
-                if (softBreakChars.indexOf(char) === -1) {
-                    softBreakChars.push(char);
-                }
-            }
+        // ソフト改行文字（LSEP, PSEP）や特殊文字を検出
+        if (code === 8232 || code === 8233 || code === 8203 || code === 65279) {
+          if (softBreakChars.indexOf(char) === -1) {
+            softBreakChars.push(char);
+          }
         }
+      }
 
-        // 通常の改行で分割して追加の文字を処理
-        const lines = softBreakText.split(/[\r\n]+/)
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+      // 通常の改行で分割して追加の文字を処理
+      const lines = softBreakText.split(/[\r\n]+/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
 
-        for (const line of lines) {
-            // 通常の文字列として入力された場合
-            if (line.length > 0 && softBreakChars.indexOf(line) === -1) {
-                softBreakChars.push(line);
-            }
+      for (const line of lines) {
+        // 通常の文字列として入力された場合
+        if (line.length > 0 && softBreakChars.indexOf(line) === -1) {
+          softBreakChars.push(line);
         }
+      }
 
-        // デフォルトのソフト改行文字を設定（空の場合）
-        if (softBreakChars.length === 0) {
-            softBreakChars = ['\u2028'];
-        }
+      // デフォルトのソフト改行文字を設定（空の場合）
+      if (softBreakChars.length === 0) {
+        softBreakChars = ['\u2028'];
+      }
 
-        return {
-            minCharacters: parseInt(document.getElementById('min-chars').value),
-            lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
-            fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
-            softBreakChars: softBreakChars,
-            excludePatterns: [],
-            enabledDetections: [
-                'auto-width', // 常に有効
-                document.getElementById('detect-edge-breaking').checked ? 'edge-breaking' : null,
-                document.getElementById('detect-soft-break').checked ? 'soft-break' : null
-            ].filter(Boolean)
-        };
+      return {
+        minCharacters: parseInt(document.getElementById('min-chars').value),
+        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
+        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
+        softBreakChars: softBreakChars,
+        excludePatterns: [],
+        enabledDetections: [
+          'auto-width', // 常に有効
+          document.getElementById('detect-edge-breaking').checked ? 'edge-breaking' : null,
+          document.getElementById('detect-soft-break').checked ? 'soft-break' : null
+        ].filter(Boolean)
+      };
     }
 
     // UI State management
     function setProcessingState(processing) {
-        isProcessing = processing;
-        document.getElementById('scan').disabled = processing;
-        document.getElementById('apply-selected').disabled = processing;
-
-        // 選択関連ボタンの状態
-        const selectAllBtn = document.getElementById('select-all');
-        const selectNoneBtn = document.getElementById('select-none');
-        // 問題のあるノードがある場合のみ「すべて選択」を有効にする
-        const withIssues = currentResults.filter(r => r.issues.length > 0);
-        if (selectAllBtn) selectAllBtn.disabled = processing || withIssues.length === 0;
-        if (selectNoneBtn) selectNoneBtn.disabled = processing;
+      isProcessing = processing;
+      // ボタンのdisabled処理を削除
     }
 
     function showResults(results, scanInfo) {
-        currentResults = results;
-        selectedNodeIds.clear();
+      currentResults = results;
+      selectedNodeIds.clear();
 
-        const container = document.getElementById('results-container');
-        const summary = document.getElementById('results-summary');
-        const list = document.getElementById('results-list');
+      const summary = document.getElementById('results-summary');
+      const header = document.getElementById('results-header');
+      const count = document.getElementById('results-count');
+      const controls = document.getElementById('results-controls');
+      const list = document.getElementById('results-list');
 
-        const withIssues = results.filter(r => r.issues.length > 0);
-        const scanInfoText = scanInfo ? ` (${scanInfo})` : '';
-        summary.innerHTML = `
-        <div class="info-message">
-          ${withIssues.length}ノード検出${scanInfoText}
-        </div>
-      `;
+      const withIssues = results.filter(r => r.issues && r.issues.length > 0);
+
+      if (withIssues.length > 0) {
+        summary.style.display = 'none';
+        header.style.display = 'flex';
+        count.textContent = `${withIssues.length}つのテキストを検出`;
+        controls.style.display = 'flex';
 
         list.innerHTML = '';
         withIssues.forEach(result => {
-            const item = document.createElement('div');
-            item.className = 'result-item has-issues';
-            item.dataset.nodeId = result.node.id;
-            // テキスト内容を安全にHTMLエスケープ
-            const textPreview = (result.originalText || '').substring(0, 50) +
-                (result.originalText.length > 50 ? '...' : '');
-            const escapedText = textPreview
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+          const item = document.createElement('div');
+          item.className = 'result-item';
+          item.dataset.nodeId = result.node.id;
 
-            item.innerHTML = `
-          <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
-          <div class="result-content">
-            <div class="result-node-name">${escapedText || result.node.name || 'Unnamed'}</div>
-            <div class="result-changes">${result.estimatedChanges}</div>
-          </div>
-        `;
+          const textPreview = (result.originalText || '').substring(0, 30) +
+            (result.originalText && result.originalText.length > 30 ? '...' : '');
 
-            // クリックイベントを追加
-            item.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') {
-                    const checkbox = item.querySelector('.node-checkbox');
-                    checkbox.checked = !checkbox.checked;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-            });
+          item.innerHTML = `
+                    <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
+                    <div class="result-content">
+                        <div class="result-text">${textPreview || 'テキスト'}</div>
+                        <div class="result-changes">${result.estimatedChanges || '改行の問題'}</div>
+                    </div>
+                `;
 
-            // チェックボックスのchangeイベント
-            const checkbox = item.querySelector('.node-checkbox');
-            checkbox.addEventListener('change', (e) => {
-                const nodeId = e.target.dataset.nodeId;
-                if (e.target.checked) {
-                    selectedNodeIds.add(nodeId);
-                    item.classList.add('selected');
-                } else {
-                    selectedNodeIds.delete(nodeId);
-                    item.classList.remove('selected');
-                }
-                updateSelectionAndFocus();
-            });
+          // Event listeners
+          item.addEventListener('click', (e) => {
+            if (e.target.type !== 'checkbox') {
+              const checkbox = item.querySelector('.node-checkbox');
+              checkbox.checked = !checkbox.checked;
+              checkbox.dispatchEvent(new Event('change'));
+            }
+          });
 
-            list.appendChild(item);
+          const checkbox = item.querySelector('.node-checkbox');
+          checkbox.addEventListener('change', (e) => {
+            const nodeId = e.target.dataset.nodeId;
+            if (e.target.checked) {
+              selectedNodeIds.add(nodeId);
+              item.classList.add('selected');
+            } else {
+              selectedNodeIds.delete(nodeId);
+              item.classList.remove('selected');
+            }
+            updateStep2State();
+            updateSelectionAndFocus();
+          });
+
+          list.appendChild(item);
         });
+      } else {
+        summary.style.display = 'block';
+        summary.innerHTML = '<div class="info">問題のあるテキストが見つかりませんでした</div>';
+        header.style.display = 'none';
+        list.innerHTML = '';
+      }
 
-        // 選択関連ボタンの表示・状態を更新
-        const controlsDiv = document.getElementById('results-controls');
-        const selectAllBtn = document.getElementById('select-all');
-        const selectNoneBtn = document.getElementById('select-none');
-
-        if (withIssues.length > 0) {
-            controlsDiv.style.display = 'flex';
-            if (selectAllBtn) selectAllBtn.disabled = false;
-            if (selectNoneBtn) selectNoneBtn.disabled = false;
-        } else {
-            controlsDiv.style.display = 'none';
-        }
+      updateStep2State();
     }
 
     function showError(message) {
-        const summary = document.getElementById('results-summary');
-        const controlsDiv = document.getElementById('results-controls');
+      const summary = document.getElementById('results-summary');
+      const header = document.getElementById('results-header');
 
-        summary.innerHTML = `<div class="error-message">エラー: ${message}</div>`;
-        controlsDiv.style.display = 'none';
+      summary.style.display = 'block';
+      summary.innerHTML = `<div class="error">エラー: ${message}</div>`;
+      header.style.display = 'none';
     }
 
     function showWarning(message) {
-        const summary = document.getElementById('results-summary');
-        const controlsDiv = document.getElementById('results-controls');
+      const summary = document.getElementById('results-summary');
+      const header = document.getElementById('results-header');
 
-        summary.innerHTML = `<div class="warning-message">警告: ${message}</div>`;
-        controlsDiv.style.display = 'none';
+      summary.style.display = 'block';
+      summary.innerHTML = `<div class="error">警告: ${message}</div>`;
+      header.style.display = 'none';
     }
 
     // 選択とフォーカス機能
     function updateSelectionAndFocus() {
-        const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
+      const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
 
-        // Figmaでノードを選択（空の場合も含む）
-        parent.postMessage({
-            pluginMessage: {
-                type: 'select-nodes',
-                nodeIds: Array.from(selectedNodeIds)
-            }
-        }, '*');
+      // Figmaでノードを選択（空の場合も含む）
+      parent.postMessage({
+        pluginMessage: {
+          type: 'select-nodes',
+          nodeIds: Array.from(selectedNodeIds)
+        }
+      }, '*');
     }
 
     // Figmaの選択変更をUIに反映
     function syncSelectionFromFigma() {
-        parent.postMessage({
-            pluginMessage: {
-                type: 'get-current-selection'
-            }
-        }, '*');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'get-current-selection'
+        }
+      }, '*');
+    }
+
+    // 定期的にFigmaの選択状態をチェック
+    function startSelectionMonitoring() {
+      // 高頻度でチェック（300ms間隔）
+      setInterval(() => {
+        if (isUIVisible) {
+          syncSelectionFromFigma();
+        }
+      }, 300);
     }
 
     // すべて選択/解除機能
     function selectAllNodes() {
-        const checkboxes = document.querySelectorAll('.node-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = true;
-            checkbox.dispatchEvent(new Event('change'));
-        });
+      const checkboxes = document.querySelectorAll('.node-checkbox');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+      });
     }
 
     function selectNoneNodes() {
-        // 直接selectedNodeIdsをクリアしてUI更新
-        selectedNodeIds.clear();
-
-        // すべてのチェックボックスとUIを更新（changeイベントを発火させない）
-        document.querySelectorAll('.result-item').forEach(item => {
-            item.classList.remove('selected');
-            const checkbox = item.querySelector('.node-checkbox');
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-        });
-
-        // Figmaの選択をクリア
-        updateSelectionAndFocus();
+      selectedNodeIds.clear();
+      document.querySelectorAll('.result-item').forEach(item => {
+        item.classList.remove('selected');
+        const checkbox = item.querySelector('.node-checkbox');
+        if (checkbox) checkbox.checked = false;
+      });
+      updateStep2State();
+      updateSelectionAndFocus();
     }
 
     function clearResults() {
-        // 検出結果をクリア
-        currentResults = [];
-        selectedNodeIds.clear();
+      currentResults = [];
+      selectedNodeIds.clear();
+      // 手動選択状態はクリアしない（Figmaの選択は保持）
 
-        // UIを初期状態に戻す
-        const summary = document.getElementById('results-summary');
-        const controlsDiv = document.getElementById('results-controls');
-        const list = document.getElementById('results-list');
+      const summary = document.getElementById('results-summary');
+      const header = document.getElementById('results-header');
+      const list = document.getElementById('results-list');
 
-        summary.innerHTML = '<div class="info-message">スキャンを実行すると、ここに検出結果が表示されます</div>';
-        controlsDiv.style.display = 'none';
-        list.innerHTML = '';
+      summary.style.display = 'block';
+      summary.innerHTML = '<div class="info">スキャンで改行の問題があるテキストを検出、または手動でテキストを選択</div>';
+      header.style.display = 'none';
+      list.innerHTML = '';
 
-        // Figmaの選択もクリア
-        updateSelectionAndFocus();
+      // Figmaの現在の選択状態を再取得
+      syncSelectionFromFigma();
 
-        // プラグイン側にもクリア通知を送信
-        parent.postMessage({
-            pluginMessage: {
-                type: 'clear-results'
-            }
-        }, '*');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'clear-results'
+        }
+      }, '*');
     }
 
     // Event listeners
     document.getElementById('scan').onclick = () => {
-        const config = getConfig();
-        setProcessingState(true);
+      const config = getConfig();
+      setProcessingState(true);
 
-        // スキャン範囲の情報を表示
-        const summary = document.getElementById('results-summary');
-        const controlsDiv = document.getElementById('results-controls');
-        summary.innerHTML = '<div class="info-message">スキャン中...</div>';
-        controlsDiv.style.display = 'none';
+      const summary = document.getElementById('results-summary');
+      const header = document.getElementById('results-header');
+      summary.style.display = 'block';
+      summary.innerHTML = '<div class="info">スキャン中...</div>';
+      header.style.display = 'none';
 
-        parent.postMessage({
-            pluginMessage: {
-                type: 'scan',
-                config: config
-            }
-        }, '*');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'scan',
+          config: config
+        }
+      }, '*');
     };
 
     // 選択ボタンのイベントリスナー
@@ -713,19 +724,19 @@
     document.getElementById('clear-results').onclick = clearResults;
 
     document.getElementById('apply-selected').onclick = () => {
-        const config = getConfig();
-        const manualOptions = {
-            removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
-            convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked
-        };
+      const config = getConfig();
+      const manualOptions = {
+        removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
+        convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked
+      };
 
-        parent.postMessage({
-            pluginMessage: {
-                type: 'apply-selected',
-                config: config,
-                options: manualOptions
-            }
-        }, '*');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'apply-selected',
+          config: config,
+          options: manualOptions
+        }
+      }, '*');
     };
 
     // Tab event listeners
@@ -734,115 +745,133 @@
 
     // Message handling from plugin
     window.onmessage = (event) => {
-        const msg = event.data.pluginMessage;
-        if (!msg) return;
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
 
-        switch (msg.type) {
-            case 'scan-complete':
-                setProcessingState(false);
-                showResults(msg.results, msg.scanInfo);
-                break;
+      switch (msg.type) {
+        case 'scan-complete':
+          setProcessingState(false);
+          showResults(msg.results, msg.scanInfo);
+          break;
 
-            case 'error':
-                setProcessingState(false);
-                showError(msg.message);
-                break;
+        case 'error':
+          setProcessingState(false);
+          showError(msg.message);
+          break;
 
-            case 'warning':
-                showWarning(msg.message);
-                break;
+        case 'warning':
+          showWarning(msg.message);
+          break;
 
-            case 'selection-changed':
-                updateUISelection(msg.selectedNodeIds);
-                break;
+        case 'selection-changed':
+          updateUISelection(msg.selectedNodeIds, msg.hasManualSelection, msg.manualSelectionCount);
+          break;
 
-            case 'config-loaded':
-                applyConfigToUI(msg.config);
-                break;
+        case 'config-loaded':
+          applyConfigToUI(msg.config);
+          break;
 
-            case 'scan-mode-info':
-                updateScanModeDisplay(msg.mode, msg.details);
-                break;
-        }
+        case 'scan-mode-info':
+          updateScanModeDisplay(msg.mode, msg.details);
+          break;
+      }
     };
 
     // 設定をUIに反映
     function applyConfigToUI(config) {
-        document.getElementById('min-chars').value = config.minCharacters || 20;
-        document.getElementById('line-break-threshold').value = config.lineBreakThreshold || 0.8;
-        document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier || 1.0;
+      document.getElementById('min-chars').value = config.minCharacters || 20;
+      document.getElementById('line-break-threshold').value = config.lineBreakThreshold || 0.8;
+      document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier || 1.0;
 
-        const softBreakChars = config.softBreakChars || ['\u2028'];
-        // ソフト改行文字を適切に表示（改行で区切らない）
-        document.getElementById('soft-break-chars').value = softBreakChars.join('');
+      const softBreakChars = config.softBreakChars || ['\u2028'];
+      // ソフト改行文字を適切に表示（改行で区切らない）
+      document.getElementById('soft-break-chars').value = softBreakChars.join('');
 
-        const enabledDetections = config.enabledDetections || ['auto-width', 'edge-breaking', 'soft-break'];
-        document.getElementById('detect-edge-breaking').checked = enabledDetections.includes('edge-breaking');
-        document.getElementById('detect-soft-break').checked = enabledDetections.includes('soft-break');
+      const enabledDetections = config.enabledDetections || ['auto-width', 'edge-breaking', 'soft-break'];
+      document.getElementById('detect-edge-breaking').checked = enabledDetections.includes('edge-breaking');
+      document.getElementById('detect-soft-break').checked = enabledDetections.includes('soft-break');
     }
 
     // 初期設定を適用
     function initializeUI() {
-        // デフォルトのソフト改行文字を設定
-        if (!document.getElementById('soft-break-chars').value.trim()) {
-            document.getElementById('soft-break-chars').value = '\u2028';
-        }
+      // デフォルトのソフト改行文字を設定
+      if (!document.getElementById('soft-break-chars').value.trim()) {
+        document.getElementById('soft-break-chars').value = '\u2028';
+      }
     }
 
     // UIの選択状態を更新
-    function updateUISelection(figmaSelectedNodeIds) {
-        // 現在のUI選択をクリア
-        selectedNodeIds.clear();
-        document.querySelectorAll('.result-item').forEach(item => {
-            item.classList.remove('selected');
-            const checkbox = item.querySelector('.node-checkbox');
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-        });
+    function updateUISelection(figmaSelectedNodeIds, hasManualSelectionFromFigma = false, manualSelectionCount = 0) {
+      selectedNodeIds.clear();
+      document.querySelectorAll('.result-item').forEach(item => {
+        item.classList.remove('selected');
+        const checkbox = item.querySelector('.node-checkbox');
+        if (checkbox) {
+          checkbox.checked = false;
+        }
+      });
 
-        // Figmaで選択されているノードがUI結果リストに含まれていればチェック
-        figmaSelectedNodeIds.forEach(nodeId => {
-            const resultItem = document.querySelector(`[data-node-id="${nodeId}"]`);
-            if (resultItem) {
-                selectedNodeIds.add(nodeId);
-                resultItem.classList.add('selected');
-                const checkbox = resultItem.querySelector('.node-checkbox');
-                if (checkbox) {
-                    checkbox.checked = true;
-                }
-            }
-        });
+      // スキャン結果リストにあるノードの選択状態を更新
+      figmaSelectedNodeIds.forEach(nodeId => {
+        const resultItem = document.querySelector(`[data-node-id="${nodeId}"]`);
+        if (resultItem) {
+          selectedNodeIds.add(nodeId);
+          resultItem.classList.add('selected');
+          const checkbox = resultItem.querySelector('.node-checkbox');
+          if (checkbox) {
+            checkbox.checked = true;
+          }
+        }
+      });
+
+      // 手動選択の状態を更新
+      hasManualSelection = hasManualSelectionFromFigma;
+
+      updateStep2State();
     }
 
     // スキャンモード表示を更新
     function updateScanModeInfo() {
-        parent.postMessage({
-            pluginMessage: {
-                type: 'get-scan-mode'
-            }
-        }, '*');
+      parent.postMessage({
+        pluginMessage: {
+          type: 'get-scan-mode'
+        }
+      }, '*');
     }
 
     // スキャンモード表示を更新
     function updateScanModeDisplay(mode, details) {
-        const scanModeInfo = document.getElementById('scan-mode-info');
-        if (scanModeInfo) {
-            scanModeInfo.innerHTML = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
-        }
+      const scanModeInfo = document.getElementById('scan-mode-info');
+      if (scanModeInfo) {
+        scanModeInfo.innerHTML = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
+      }
     }
 
     // Initialize
     setProcessingState(false);
     initializeUI();
     updateScanModeInfo();
+    updateStep2State();
 
     // Load saved configuration on startup
     parent.postMessage({
-        pluginMessage: {
-            type: 'load-config'
-        }
+      pluginMessage: {
+        type: 'load-config'
+      }
     }, '*');
+
+    // 選択状態の監視を開始
+    startSelectionMonitoring();
+
+    // 初期選択状態を取得（少し遅延させて確実に取得）
+    setTimeout(() => {
+      syncSelectionFromFigma();
+    }, 100);
+
+    // さらに確実にするため、もう一度取得
+    setTimeout(() => {
+      syncSelectionFromFigma();
+    }, 500);
 
     // パフォーマンス最適化：イベントベースの更新
     let scanModeUpdateInterval = null;
@@ -850,43 +879,51 @@
 
     // UIがアクティブな時のみ更新
     function startScanModeUpdates() {
-        if (scanModeUpdateInterval) return;
+      if (scanModeUpdateInterval) return;
 
-        // 長い間隔でポーリング（フォールバック用）
-        scanModeUpdateInterval = setInterval(() => {
-            if (isUIVisible) {
-                updateScanModeInfo();
-            }
-        }, 10000);
+      // 長い間隔でポーリング（フォールバック用）
+      scanModeUpdateInterval = setInterval(() => {
+        if (isUIVisible) {
+          updateScanModeInfo();
+        }
+      }, 10000);
     }
 
     function stopScanModeUpdates() {
-        if (scanModeUpdateInterval) {
-            clearInterval(scanModeUpdateInterval);
-            scanModeUpdateInterval = null;
-        }
+      if (scanModeUpdateInterval) {
+        clearInterval(scanModeUpdateInterval);
+        scanModeUpdateInterval = null;
+      }
     }
 
     // ウィンドウのフォーカス状態を監視
     window.addEventListener('focus', () => {
-        isUIVisible = true;
-        updateScanModeInfo(); // 即座に更新
-        // startScanModeUpdates();
+      isUIVisible = true;
+      updateScanModeInfo(); // 即座に更新
+      syncSelectionFromFigma(); // 選択状態も更新
     });
 
     window.addEventListener('blur', () => {
-        isUIVisible = false;
-        stopScanModeUpdates();
+      isUIVisible = false;
+      stopScanModeUpdates();
     });
 
     // ユーザーがUIを操作した時に更新
     document.addEventListener('click', () => {
-        updateScanModeInfo();
+      updateScanModeInfo();
+      syncSelectionFromFigma(); // 選択状態も更新
+    });
+
+    // マウスが戻ってきた時にも更新
+    window.addEventListener('mouseenter', () => {
+      if (isUIVisible) {
+        syncSelectionFromFigma();
+      }
     });
 
     // 初回開始
     // startScanModeUpdates();
-</script>
+  </script>
 </body>
 
 </html>
