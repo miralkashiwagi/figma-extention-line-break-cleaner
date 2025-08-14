@@ -1082,7 +1082,7 @@ class BatchProcessor {
 // Default configuration
 const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 20,
-  lineBreakThreshold: 0.8, // コンテナ幅＊%以上の行で改行処理（検出・削除）
+  lineBreakThreshold: 0.9, // コンテナ幅＊%以上の行で改行処理（検出・削除）
   softBreakChars: ['\u2028'],
   excludePatterns: [],
   enabledDetections: ['auto-width', 'edge-breaking', 'soft-break'],
