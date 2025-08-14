@@ -434,13 +434,7 @@ class TextProcessor {
       }
     }
     
-    // 基本的なスペース正規化のみ（改行は保護）
-    const joinedText = result.join('\n');
-    let normalized = joinedText.replace(/[ \t]+$/gm, ''); // 行末空白削除
-    normalized = normalized.replace(/[ \t]+/g, ' '); // 複数スペース→単一
-    normalized = normalized.replace(/[ \t]*([。．、，！？])[ \t]*/g, '$1');
-    
-    return normalized;
+    return result.join('\n');
   }
 
   private shouldRemoveLineBreak(currentLine: string, nextLine: string, containerWidth: number, fontSize: number = 16): boolean {
@@ -558,13 +552,6 @@ class TextProcessor {
     return result;
   }
 
-  private normalizeSpaces(text: string): string {
-    let result = text.replace(/[ \t]+$/gm, '');
-    result = result.replace(/[ \t]+/g, ' ');
-    result = result.replace(/\s*([。．、，！？])\s*/g, '$1');
-    
-    return result;
-  }
 
   private estimateTextWidth(text: string, fontSize: number): number {
     let totalWidth = 0;
@@ -895,8 +882,6 @@ class BatchProcessor {
     node: TextNode,
     forceChanges?: {
       removeLineBreaks?: boolean;
-      normalizeSpaces?: boolean;
-      convertToAutoHeight?: boolean;
     }
   ): Promise<ProcessingResult> {
     try {
@@ -917,14 +902,12 @@ class BatchProcessor {
         if (forceChanges.removeLineBreaks) {
           const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 16;
           processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize);
-        }
-
-        if (forceChanges.normalizeSpaces) {
-          processedText = this.processor['normalizeSpaces'](processedText);
-        }
-
-        if (forceChanges.convertToAutoHeight) {
-          changes.newAutoResize = 'HEIGHT';
+          
+          // auto-width要素は自動的にauto-heightに変換
+          if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
+            console.log('auto-width要素をauto-heightに変換');
+            changes.newAutoResize = 'HEIGHT';
+          }
         }
 
         if (processedText !== node.characters) {
@@ -1158,9 +1141,7 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
       });
       
       const result = await currentProcessor.processIndividualNode(node, {
-        removeLineBreaks: options.removeLineBreaks,
-        normalizeSpaces: options.normalizeSpaces,
-        convertToAutoHeight: options.convertToAutoHeight
+        removeLineBreaks: options.removeLineBreaks
       });
       
       processResults.push(result);

@@ -245,8 +245,6 @@
         
         <div class="checkbox-group">
           <label><input type="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
-          <label><input type="checkbox" id="manual-normalize-spaces"> スペース正規化</label>
-          <label><input type="checkbox" id="manual-convert-height"> Auto-height変換</label>
         </div>
       </div>
 
@@ -415,9 +413,7 @@
     document.getElementById('apply-selected').onclick = () => {
       const config = getConfig();
       const manualOptions = {
-        removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
-        normalizeSpaces: document.getElementById('manual-normalize-spaces').checked,
-        convertToAutoHeight: document.getElementById('manual-convert-height').checked
+        removeLineBreaks: document.getElementById('manual-remove-breaks').checked
       };
       
       setProcessingState(true);
