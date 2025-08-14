@@ -645,14 +645,9 @@
       }, '*');
     }
 
-    // 定期的にFigmaの選択状態をチェック
+    // 選択状態は既にcode.tsのselectionchangeイベントで監視されているため削除
     function startSelectionMonitoring() {
-      // 高頻度でチェック（300ms間隔）
-      setInterval(() => {
-        if (isUIVisible) {
-          syncSelectionFromFigma();
-        }
-      }, 300);
+      // 選択状態の監視はcode.tsのfigma.on('selectionchange')で処理される
     }
 
     // すべて選択/解除機能
@@ -860,18 +855,8 @@
       }
     }, '*');
 
-    // 選択状態の監視を開始
-    startSelectionMonitoring();
-
-    // 初期選択状態を取得（少し遅延させて確実に取得）
-    setTimeout(() => {
-      syncSelectionFromFigma();
-    }, 100);
-
-    // さらに確実にするため、もう一度取得
-    setTimeout(() => {
-      syncSelectionFromFigma();
-    }, 500);
+    // 初期選択状態を取得（プラグイン起動時のみ）
+    syncSelectionFromFigma();
 
     // パフォーマンス最適化：イベントベースの更新
     let scanModeUpdateInterval = null;
@@ -881,12 +866,12 @@
     function startScanModeUpdates() {
       if (scanModeUpdateInterval) return;
 
-      // 長い間隔でポーリング（フォールバック用）
-      scanModeUpdateInterval = setInterval(() => {
-        if (isUIVisible) {
-          updateScanModeInfo();
-        }
-      }, 10000);
+      // スキャンモード情報もcode.tsのselectionchangeイベントで更新されるため不要
+      // scanModeUpdateInterval = setInterval(() => {
+      //   if (isUIVisible) {
+      //     updateScanModeInfo();
+      //   }
+      // }, 10000);
     }
 
     function stopScanModeUpdates() {
