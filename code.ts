@@ -948,7 +948,7 @@ class BatchProcessor {
     const allNodes = this.analyzer.findTextNodes();
 
     if (allNodes.length === 0) {
-      figma.notify('現在のページにテキストノードが見つかりません', { error: true });
+      figma.notify('現在のページにテキストノードが見つかりません', { error: true, timeout: 3000 });
       throw new Error('No text nodes found in current page');
     }
 
@@ -1100,6 +1100,7 @@ figma.showUI(__html__, {
 let currentProcessor: BatchProcessor | null = null;
 let isProcessing = false;
 let scannedNodeIds: Set<string> = new Set();
+let currentNotificationHandler: any = null; // 現在のnotificationのhandlerを保持
 
 // Load saved configuration
 async function loadConfig(): Promise<ProcessingConfig> {
@@ -1147,6 +1148,9 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   isProcessing = true;
   currentProcessor = new BatchProcessor(config);
 
+  // スキャン開始通知（長めのtimeoutで手動で消す）
+  currentNotificationHandler = figma.notify('スキャン中...', { timeout: 30000 });
+
   try {
     await saveConfig(config);
     const results = await currentProcessor.scanCurrentPage(onProgress);
@@ -1170,10 +1174,30 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
       scanInfo: scanInfo
     });
 
+    // スキャン中通知を手動で消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
+    // スキャン完了通知
+    const issueCount = results.filter(r => r.issues.length > 0).length;
+    if (issueCount > 0) {
+      figma.notify(`スキャン完了: ${issueCount}個の問題を発見`, { timeout: 3000 });
+    } else {
+      figma.notify('スキャン完了: 問題なし', { timeout: 3000 });
+    }
+
     // スキャン完了後、現在の選択状態を同期
     handleGetCurrentSelection();
 
   } catch (error) {
+    // エラー時もスキャン中通知を消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
     sendToUI({
       type: 'error',
       message: error instanceof Error ? error.message : 'Scan failed'
@@ -1192,6 +1216,10 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
 
   isProcessing = true;
 
+  // クリーニング開始通知（長めのtimeoutで手動で消す）
+  const nodesToProcess = results.filter(r => r.issues.length > 0).length;
+  currentNotificationHandler = figma.notify(`クリーニング中... ${nodesToProcess}個のノードを処理`, { timeout: 30000 });
+
   try {
     const processResults = await currentProcessor.processNodes(results, onProgress);
 
@@ -1201,7 +1229,20 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
     });
 
     const stats = currentProcessor.generateStatistics(processResults);
+    
+    // クリーニング中通知を手動で消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
+    // クリーニング完了通知
+    if (stats.successful > 0) {
+      figma.notify(`クリーニング完了: ${stats.successful}個のノードを処理`, { timeout: 3000 });
+    }
+    
     if (stats.failed > 0) {
+      figma.notify(`${stats.failed}個のノードで処理に失敗しました`, { error: true, timeout: 3000 });
       sendToUI({
         type: 'warning',
         message: `${stats.failed} nodes failed to process. Check for missing fonts or locked layers.`
@@ -1209,6 +1250,12 @@ async function handleApplyAll(results: TextAnalysisResult[]): Promise<void> {
     }
 
   } catch (error) {
+    // エラー時もクリーニング中通知を消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
     sendToUI({
       type: 'error',
       message: error instanceof Error ? error.message : 'Processing failed'
@@ -1231,9 +1278,12 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
     ) as TextNode[];
 
     if (selectedNodes.length === 0) {
-      figma.notify('テキストノードが選択されていません', { error: true });
+      figma.notify('テキストノードが選択されていません', { error: true, timeout: 3000 });
       return;
     }
+
+    // 手動クリーニング開始通知（長めのtimeoutで手動で消す）
+    currentNotificationHandler = figma.notify(`クリーニング中... ${selectedNodes.length}個の選択テキストを処理`, { timeout: 30000 });
 
     const processResults: ProcessingResult[] = [];
 
@@ -1256,16 +1306,22 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
       processResults.push(result);
     }
 
-    // 成功メッセージを表示
+    // 手動クリーニング中通知を手動で消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
+    // 手動クリーニング完了通知
     const successCount = processResults.filter(r => r.success).length;
     const failCount = processResults.filter(r => !r.success).length;
 
     if (successCount > 0) {
-      figma.notify(`${successCount}個のテキストノードを処理しました`, { timeout: 3000 });
+      figma.notify(`クリーニング完了: ${successCount}個のテキストを処理`, { timeout: 3000 });
     }
 
     if (failCount > 0) {
-      figma.notify(`${failCount}個のノードで処理に失敗しました`, { error: true });
+      figma.notify(`${failCount}個のノードで処理に失敗しました`, { error: true, timeout: 3000 });
     }
 
     sendToUI({
@@ -1274,6 +1330,12 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
     });
 
   } catch (error) {
+    // エラー時も手動クリーニング中通知を消す
+    if (currentNotificationHandler) {
+      currentNotificationHandler.cancel();
+      currentNotificationHandler = null;
+    }
+    
     sendToUI({
       type: 'error',
       message: error instanceof Error ? error.message : 'Selected processing failed'

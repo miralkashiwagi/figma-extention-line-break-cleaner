@@ -594,31 +594,18 @@
           list.appendChild(item);
         });
       } else {
-        summary.style.display = 'block';
-        summary.innerHTML = '<div class="info">問題のあるテキストが見つかりませんでした</div>';
-        header.style.display = 'none';
-        list.innerHTML = '';
+          figma.notify(`問題のあるテキストは見つかりませんでした`);
       }
 
       updateStep2State();
     }
 
     function showError(message) {
-      const summary = document.getElementById('results-summary');
-      const header = document.getElementById('results-header');
-
-      summary.style.display = 'block';
-      summary.innerHTML = `<div class="error">エラー: ${message}</div>`;
-      header.style.display = 'none';
+        figma.notify(`${message}`, { error: true });
     }
 
     function showWarning(message) {
-      const summary = document.getElementById('results-summary');
-      const header = document.getElementById('results-header');
-
-      summary.style.display = 'block';
-      summary.innerHTML = `<div class="error">警告: ${message}</div>`;
-      header.style.display = 'none';
+        figma.notify(`${message}`, { error: true });
     }
 
     // 選択とフォーカス機能
@@ -675,7 +662,7 @@
       const list = document.getElementById('results-list');
 
       summary.style.display = 'block';
-      summary.innerHTML = '<div class="info">スキャンで改行の問題があるテキストを検出、または手動でテキストを選択</div>';
+      summary.innerHTML = '<div class="info"></div>';
       header.style.display = 'none';
       list.innerHTML = '';
 
@@ -694,11 +681,8 @@
       const config = getConfig();
       setProcessingState(true);
 
-      const summary = document.getElementById('results-summary');
-      const header = document.getElementById('results-header');
-      summary.style.display = 'block';
-      summary.innerHTML = '<div class="info">スキャン中...</div>';
-      header.style.display = 'none';
+      const header = document.getElementById('results-count');
+      header.innerHTML = '<div class="info">スキャン中...</div>';
 
       parent.postMessage({
         pluginMessage: {

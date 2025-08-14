@@ -5,7 +5,8 @@
       "WebFetch(domain:forum.figma.com)",
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebSearch"
     ],
     "deny": []
   }
