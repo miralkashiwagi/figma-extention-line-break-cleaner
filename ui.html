@@ -646,9 +646,6 @@
     }
 
     // 選択状態は既にcode.tsのselectionchangeイベントで監視されているため削除
-    function startSelectionMonitoring() {
-      // 選択状態の監視はcode.tsのfigma.on('selectionchange')で処理される
-    }
 
     // すべて選択/解除機能
     function selectAllNodes() {
@@ -858,40 +855,14 @@
     // 初期選択状態を取得（プラグイン起動時のみ）
     syncSelectionFromFigma();
 
-    // パフォーマンス最適化：イベントベースの更新
-    let scanModeUpdateInterval = null;
-    let isUIVisible = true;
 
-    // UIがアクティブな時のみ更新
-    function startScanModeUpdates() {
-      if (scanModeUpdateInterval) return;
-
-      // スキャンモード情報もcode.tsのselectionchangeイベントで更新されるため不要
-      // scanModeUpdateInterval = setInterval(() => {
-      //   if (isUIVisible) {
-      //     updateScanModeInfo();
-      //   }
-      // }, 10000);
-    }
-
-    function stopScanModeUpdates() {
-      if (scanModeUpdateInterval) {
-        clearInterval(scanModeUpdateInterval);
-        scanModeUpdateInterval = null;
-      }
-    }
 
     // ウィンドウのフォーカス状態を監視
     window.addEventListener('focus', () => {
-      isUIVisible = true;
       updateScanModeInfo(); // 即座に更新
       syncSelectionFromFigma(); // 選択状態も更新
     });
 
-    window.addEventListener('blur', () => {
-      isUIVisible = false;
-      stopScanModeUpdates();
-    });
 
     // ユーザーがUIを操作した時に更新
     document.addEventListener('click', () => {
@@ -899,15 +870,8 @@
       syncSelectionFromFigma(); // 選択状態も更新
     });
 
-    // マウスが戻ってきた時にも更新
-    window.addEventListener('mouseenter', () => {
-      if (isUIVisible) {
-        syncSelectionFromFigma();
-      }
-    });
-
-    // 初回開始
-    // startScanModeUpdates();
+    // 初期更新
+    updateScanModeInfo();
   </script>
 </body>
 
