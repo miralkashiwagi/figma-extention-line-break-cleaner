@@ -59,9 +59,6 @@ interface ProcessingResult {
 interface ProgressUpdate {
   current: number;
   total: number;
-  currentNode: string;
-  progress: number;
-  message: string;
 }
 
 interface UIMessage {
@@ -70,6 +67,32 @@ interface UIMessage {
 }
 
 // ===== UTILITY CLASSES =====
+class SharedUtilities {
+  private regexCache: RegexPatternCache;
+  private widthCalculator: TextWidthCalculator;
+
+  constructor(config: ProcessingConfig) {
+    this.regexCache = new RegexPatternCache();
+    this.widthCalculator = new TextWidthCalculator(config);
+  }
+
+  getBreakPattern(softBreakChars: string[]): RegExp {
+    return this.regexCache.getBreakPattern(softBreakChars);
+  }
+
+  estimateTextWidth(text: string, fontSize: number): number {
+    return this.widthCalculator.estimateTextWidth(text, fontSize);
+  }
+
+  updateConfig(config: ProcessingConfig): void {
+    this.widthCalculator = new TextWidthCalculator(config);
+  }
+
+  static getFontSize(node: TextNode): number {
+    return typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
+  }
+}
+
 class TextWidthCalculator {
   private config: ProcessingConfig;
 
@@ -152,17 +175,15 @@ class RegexPatternCache {
 // ===== TEXT ANALYZER CLASS =====
 class TextAnalyzer {
   private config: ProcessingConfig;
-  private regexCache: RegexPatternCache;
-  private widthCalculator: TextWidthCalculator;
+  private utils: SharedUtilities;
 
-  constructor(config: ProcessingConfig) {
+  constructor(config: ProcessingConfig, utils: SharedUtilities) {
     this.config = config;
-    this.regexCache = new RegexPatternCache();
-    this.widthCalculator = new TextWidthCalculator(config);
+    this.utils = utils;
   }
 
   private getBreakPattern(): RegExp {
-    return this.regexCache.getBreakPattern(this.config.softBreakChars);
+    return this.utils.getBreakPattern(this.config.softBreakChars);
   }
 
   async analyzeTextNode(node: TextNode): Promise<TextAnalysisResult> {
@@ -250,7 +271,7 @@ class TextAnalyzer {
     try {
       const currentText = node.characters;
       const nodeWidth = node.width;
-      const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
+      const fontSize = SharedUtilities.getFontSize(node);
 
       const autoResize = node.textAutoResize;
       if (autoResize === 'NONE' || autoResize === 'HEIGHT') {
@@ -309,7 +330,7 @@ class TextAnalyzer {
 
     lines.forEach((line, index) => {
       if (line.trim().length > 0) {
-        const estimatedWidth = this.widthCalculator.estimateTextWidth(line.trim(), fontSize);
+        const estimatedWidth = this.utils.estimateTextWidth(line.trim(), fontSize);
         const ratio = estimatedWidth / containerWidth;
 
         if (ratio >= this.config.lineBreakThreshold) {
@@ -348,7 +369,7 @@ class TextAnalyzer {
 
       for (const word of words) {
         const testLine = currentLine + word;
-        const estimatedWidth = this.widthCalculator.estimateTextWidth(testLine, fontSize);
+        const estimatedWidth = this.utils.estimateTextWidth(testLine, fontSize);
 
         if (estimatedWidth <= containerWidth || currentLine === '') {
           currentLine = testLine;
@@ -456,24 +477,22 @@ class TextAnalyzer {
 // ===== TEXT PROCESSOR CLASS =====
 class TextProcessor {
   private config: ProcessingConfig;
-  private regexCache: RegexPatternCache;
-  private widthCalculator: TextWidthCalculator;
+  private utils: SharedUtilities;
 
-  constructor(config: ProcessingConfig) {
+  constructor(config: ProcessingConfig, utils: SharedUtilities) {
     this.config = config;
-    this.regexCache = new RegexPatternCache();
-    this.widthCalculator = new TextWidthCalculator(config);
+    this.utils = utils;
   }
 
   private getBreakPattern(): RegExp {
-    return this.regexCache.getBreakPattern(this.config.softBreakChars);
+    return this.utils.getBreakPattern(this.config.softBreakChars);
   }
 
   generateChanges(originalText: string, issues: DetectedIssue[], node: TextNode): ProcessingChanges {
     const changes: ProcessingChanges = {};
     let processedText = originalText;
 
-    const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
+    const fontSize = SharedUtilities.getFontSize(node);
 
     if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
       changes.newAutoResize = 'HEIGHT';
@@ -529,7 +548,7 @@ class TextProcessor {
       if (/[。．！？]$/.test(currentTrimmed)) {
         shouldBreakAfter[i] = true;
       } else {
-        const estimatedWidth = this.widthCalculator.estimateTextWidth(currentTrimmed, fontSize);
+        const estimatedWidth = this.utils.estimateTextWidth(currentTrimmed, fontSize);
         const widthRatio = estimatedWidth / containerWidth;
 
         if (widthRatio < this.config.lineBreakThreshold) {
@@ -726,17 +745,18 @@ class BatchProcessor {
   private processor: TextProcessor;
   private fontManager: FontManager;
   private config: ProcessingConfig;
+  private utils: SharedUtilities;
 
   constructor(config: ProcessingConfig) {
     this.config = config;
-    this.analyzer = new TextAnalyzer(config);
-    this.processor = new TextProcessor(config);
+    this.utils = new SharedUtilities(config);
+    this.analyzer = new TextAnalyzer(config, this.utils);
+    this.processor = new TextProcessor(config, this.utils);
     this.fontManager = new FontManager();
   }
 
   async analyzeNodes(
-    nodes: TextNode[],
-    onProgress?: (progress: ProgressUpdate) => void
+    nodes: TextNode[]
   ): Promise<TextAnalysisResult[]> {
     this.isProcessing = true;
     this.isCancelled = false;
@@ -764,16 +784,6 @@ class BatchProcessor {
             const result = await this.analyzer.analyzeTextNode(node);
             results.push(result);
 
-            if (onProgress) {
-              onProgress({
-                current: currentIndex + 1,
-                total: nodes.length,
-                currentNode: node.name,
-                progress: Math.round(((currentIndex + 1) / nodes.length) * 100),
-                message: `Analyzing: ${node.name}`
-              });
-            }
-
           } catch (error) {
             results.push({
               node,
@@ -797,8 +807,7 @@ class BatchProcessor {
   }
 
   async processNodes(
-    analysisResults: TextAnalysisResult[],
-    onProgress?: (progress: ProgressUpdate) => void
+    analysisResults: TextAnalysisResult[]
   ): Promise<ProcessingResult[]> {
     this.isProcessing = true;
     this.isCancelled = false;
@@ -855,16 +864,6 @@ class BatchProcessor {
               changes
             });
 
-            if (onProgress) {
-              onProgress({
-                current: currentIndex + 1,
-                total: processable.length,
-                currentNode: node.name,
-                progress: Math.round(((currentIndex + 1) / processable.length) * 100),
-                message: `Processing: ${node.name}`
-              });
-            }
-
           } catch (error) {
             results.push({
               node,
@@ -886,9 +885,7 @@ class BatchProcessor {
     return results;
   }
 
-  async scanCurrentPage(
-    onProgress?: (progress: ProgressUpdate) => void
-  ): Promise<TextAnalysisResult[]> {
+  async scanCurrentPage(): Promise<TextAnalysisResult[]> {
     const allNodes = this.analyzer.findTextNodes();
 
     if (allNodes.length === 0) {
@@ -899,7 +896,7 @@ class BatchProcessor {
       throw new Error('No text nodes found in current page');
     }
 
-    return await this.analyzeNodes(allNodes, onProgress);
+    return await this.analyzeNodes(allNodes);
   }
 
   async processIndividualNode(
@@ -924,7 +921,7 @@ class BatchProcessor {
         const changes: ProcessingChanges = {};
         let processedText = node.characters;
 
-        const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
+        const fontSize = SharedUtilities.getFontSize(node);
         processedText = this.processor.processTextDirectly(processedText, node.width, fontSize, forceChanges);
 
         if (forceChanges.removeLineBreaks && node.textAutoResize === 'WIDTH_AND_HEIGHT') {
@@ -961,7 +958,8 @@ class BatchProcessor {
   }
 
   private async yieldToUI(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 0));
+    // チャンクサイズが小さいので、yieldは不要
+    // 必要に応じて復活可能: return new Promise(resolve => setTimeout(resolve, 0));
   }
 
   cancel(): void {
@@ -1103,9 +1101,21 @@ figma.ui.onmessage = async (msg: UIMessage) => {
   }
 };
 
+function isConfigChanged(oldConfig: ProcessingConfig | null, newConfig: ProcessingConfig): boolean {
+  if (!oldConfig) return true;
+
+  return (
+    oldConfig.minCharacters !== newConfig.minCharacters ||
+    oldConfig.lineBreakThreshold !== newConfig.lineBreakThreshold ||
+    oldConfig.fontWidthMultiplier !== newConfig.fontWidthMultiplier ||
+    oldConfig.softBreakChars.length !== newConfig.softBreakChars.length ||
+    oldConfig.softBreakChars.some((char, i) => char !== newConfig.softBreakChars[i])
+  );
+}
+
 function getBatchProcessor(config: ProcessingConfig): BatchProcessor {
   // 設定が変更された場合のみ新しいインスタンスを作成
-  if (!batchProcessor || !currentConfig || JSON.stringify(currentConfig) !== JSON.stringify(config)) {
+  if (!batchProcessor || isConfigChanged(currentConfig, config)) {
     batchProcessor = new BatchProcessor(config);
     currentConfig = { ...config };
   }
@@ -1117,9 +1127,19 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   const processor = getBatchProcessor(config);
 
   try {
-    currentResults = await processor.scanCurrentPage((progress) => {
-      // Progress updates could be sent to UI here if needed
-    });
+    currentResults = await processor.scanCurrentPage();
+
+    // スキャン完了通知
+    const issuesFound = currentResults.filter(r => r.issues && r.issues.length > 0).length;
+    if (issuesFound > 0) {
+      figma.notify(`スキャン完了: ${issuesFound}つのテキストで問題を検出`, {
+        timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
+      });
+    } else {
+      figma.notify('スキャン完了: 問題のあるテキストは見つかりませんでした', {
+        timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
+      });
+    }
 
     sendMessage({
       type: 'scan-complete',
@@ -1128,9 +1148,15 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
     });
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Scan failed';
+    figma.notify(`スキャンエラー: ${errorMessage}`, {
+      error: true,
+      timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.ERROR
+    });
+
     sendMessage({
       type: 'error',
-      message: error instanceof Error ? error.message : 'Scan failed'
+      message: errorMessage
     });
   }
 }
@@ -1145,8 +1171,15 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
 
     let processedCount = 0;
 
+    // UI側にクリーニング開始を通知
+    sendMessage({
+      type: 'processing-start',
+      count: selectedTextNodes.length
+    });
+
     // Process manually selected nodes
-    for (const node of selectedTextNodes) {
+    for (let i = 0; i < selectedTextNodes.length; i++) {
+      const node = selectedTextNodes[i];
       const result = await processor.processIndividualNode(node, {
         removeLineBreaks: options.removeLineBreaks,
         convertSoftBreaks: options.convertSoftBreaks
@@ -1160,8 +1193,14 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
     // Process nodes from scan results (if any are selected in UI)
     // This would require additional logic to track UI selections
 
-    figma.notify(`${processedCount}つのテキストを処理しました`, {
+    figma.notify(`クリーニング完了！${processedCount}つのテキストを処理しました`, {
       timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
+    });
+
+    // UI側にクリーニング完了を通知
+    sendMessage({
+      type: 'processing-complete',
+      processedCount: processedCount
     });
 
   } catch (error) {

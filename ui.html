@@ -450,8 +450,6 @@
       const step2Number = document.getElementById('step-2-number');
       const selectionStatus = document.getElementById('selection-status');
 
-
-
       if (hasSelection) {
         step2Number.classList.remove('inactive');
 
@@ -468,55 +466,47 @@
         selectionStatus.textContent = 'テキストを選択してください';
         selectionStatus.classList.remove('has-selection');
       }
-
-
     }
 
-    // Configuration management
+    // Show processing status
+    function showProcessingStatus(message) {
+      const selectionStatus = document.getElementById('selection-status');
+      selectionStatus.textContent = message;
+      selectionStatus.classList.add('has-selection');
+    }
+
+    // Configuration management (simplified)
     function getConfig() {
-      const softBreakText = document.getElementById('soft-break-chars').value;
-
-      // ソフト改行文字の特別処理
+      const softBreakText = document.getElementById('soft-break-chars').value.trim();
+      
+      // 簡素化されたソフト改行文字処理
       let softBreakChars = [];
-
-      // テキストエリアの値を文字単位で処理
-      for (let i = 0; i < softBreakText.length; i++) {
-        const char = softBreakText[i];
-        const code = char.charCodeAt(0);
-
-        // ソフト改行文字（LSEP, PSEP）や特殊文字を検出
-        if (code === 8232 || code === 8233 || code === 8203 || code === 65279) {
-          if (softBreakChars.indexOf(char) === -1) {
+      if (softBreakText) {
+        // 特殊文字コードをチェック
+        const specialCodes = [8232, 8233, 8203, 65279]; // LSEP, PSEP, ZWSP, BOM
+        for (let i = 0; i < softBreakText.length; i++) {
+          const char = softBreakText[i];
+          if (specialCodes.includes(char.charCodeAt(0)) && !softBreakChars.includes(char)) {
             softBreakChars.push(char);
           }
         }
+        
+        // 通常文字列も追加
+        const lines = softBreakText.split(/[\r\n]+/).filter(line => line.trim());
+        softBreakChars.push(...lines.filter(line => !softBreakChars.includes(line)));
       }
-
-      // 通常の改行で分割して追加の文字を処理
-      const lines = softBreakText.split(/[\r\n]+/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
-
-      for (const line of lines) {
-        // 通常の文字列として入力された場合
-        if (line.length > 0 && softBreakChars.indexOf(line) === -1) {
-          softBreakChars.push(line);
-        }
-      }
-
-      // デフォルトのソフト改行文字を設定（空の場合）
+      
+      // デフォルト設定
       if (softBreakChars.length === 0) {
         softBreakChars = ['\u2028'];
       }
 
       return {
-        minCharacters: parseInt(document.getElementById('min-chars').value),
-        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
-        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
+        minCharacters: parseInt(document.getElementById('min-chars').value) || 10,
+        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value) || 0.8,
+        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value) || 1.0,
         softBreakChars: softBreakChars,
-        enabledDetections: [
-          'auto-width', 'edge-breaking', 'soft-break'//常に3つ有効
-        ].filter(Boolean)
+        enabledDetections: ['auto-width', 'edge-breaking', 'soft-break']
       };
     }
 
@@ -584,7 +574,14 @@
           list.appendChild(item);
         });
       } else {
-          figma.notify(`問題のあるテキストは見つかりませんでした`);
+        // 結果が0件の場合はUIをリセット
+        summary.style.display = 'block';
+        header.style.display = 'none';
+        count.textContent = '';
+        controls.style.display = 'none';
+        list.innerHTML = '';
+        
+        figma.notify(`問題のあるテキストは見つかりませんでした`);
       }
 
       updateStep2State();
@@ -720,11 +717,27 @@
 
         case 'error':
           isProcessing = false;
+          // エラー時もUIをリセット
+          const errorHeader = document.getElementById('results-count');
+          errorHeader.textContent = '';
+          document.getElementById('results-header').style.display = 'none';
           showError(msg.message);
           break;
 
         case 'warning':
           showWarning(msg.message);
+          break;
+
+        case 'processing-start':
+          showProcessingStatus(`クリーニング中... ${msg.count}つのテキストを処理中`);
+          break;
+
+        case 'processing-complete':
+          showProcessingStatus(`クリーニング完了！${msg.processedCount}つのテキストを処理しました`);
+          // 3秒後に元の状態に戻す
+          setTimeout(() => {
+            updateStep2State();
+          }, 3000);
           break;
 
         case 'selection-changed':
