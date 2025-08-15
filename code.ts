@@ -197,6 +197,16 @@ class TextAnalyzer {
       };
     }
 
+    // 改行文字やソフト改行文字を含まないテキストは除外
+    if (!this.hasBreakCharacters(currentText)) {
+      return {
+        node,
+        issues: [],
+        estimatedChanges: 'Skipped (no line breaks)',
+        originalText: currentText
+      };
+    }
+
     const autoWidthIssues = this.detectAutoWidthIssues(node);
     issues.push(...autoWidthIssues);
 
@@ -223,7 +233,8 @@ class TextAnalyzer {
       const currentAutoResize = node.textAutoResize;
       const currentText = node.characters;
 
-      if ((currentAutoResize === 'NONE' || currentAutoResize === 'HEIGHT' || currentAutoResize === 'WIDTH_AND_HEIGHT') && currentText.includes('\n')) {
+      // WIDTH_AND_HEIGHTのテキストのみをauto-width問題として検出
+      if (currentAutoResize === 'WIDTH_AND_HEIGHT' && currentText.includes('\n')) {
         issues.push({
           type: 'auto-width'
         });
@@ -360,10 +371,10 @@ class TextAnalyzer {
     issues.forEach(issue => {
       switch (issue.type) {
         case 'auto-width':
-          changeTypes.add('幅の設定＆端の改行');
+          changeTypes.add('幅＆改行');
           break;
         case 'edge-breaking':
-          changeTypes.add('端の改行');
+          changeTypes.add('改行');
           break;
         case 'soft-break':
           changeTypes.add('ソフト改行');
@@ -372,6 +383,22 @@ class TextAnalyzer {
     });
 
     return Array.from(changeTypes).join(', ');
+  }
+
+  private hasBreakCharacters(text: string): boolean {
+    // 通常の改行文字をチェック
+    if (text.includes('\n')) {
+      return true;
+    }
+
+    // ソフト改行文字をチェック
+    for (const softBreakChar of this.config.softBreakChars) {
+      if (text.includes(softBreakChar)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   findTextNodes(ignoreMinCharacters: boolean = false): TextNode[] {

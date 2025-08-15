@@ -280,6 +280,10 @@
       margin-bottom: var(--space-3);
     }
 
+    .setting.hidden {
+      opacity: 0;
+    }
+
     .setting label {
       display: block;
       font-size: var(--font-size-sm);
@@ -382,8 +386,10 @@
         <div class="step-title">クリーニング実行</div>
       </div>
       <div class="options">
-        <label class="option-label"><input type="checkbox" class="checkbox" id="manual-remove-breaks" checked> 改行除去</label>
-        <label class="option-label"><input type="checkbox" class="checkbox" id="manual-convert-soft-breaks" checked> ソフト改行は改行に変換</label>
+        <label class="option-label"><input type="checkbox" class="checkbox" id="manual-remove-breaks" checked>
+          改行除去</label>
+        <label class="option-label"><input type="checkbox" class="checkbox" id="manual-convert-soft-breaks" checked>
+          ソフト改行は改行に変換</label>
       </div>
       <div class="selection-status" id="selection-status">テキストを選択してください</div>
       <button id="apply-selected" class="btn btn-primary">選択したテキストをクリーニング</button>
@@ -411,16 +417,19 @@
     <div class="setting">
       <label for="min-chars">スキャン対象の最小文字数:</label>
       <input type="number" class="input-field" id="min-chars" min="1" max="1000" />
+      <small>文字の少ないテキスト要素はスキャンから除外する</small>
     </div>
     <div class="setting">
       <label for="line-break-threshold">改行処理閾値:</label>
       <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1" />
+      <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する</small>
     </div>
     <div class="setting">
       <label for="font-width-multiplier">フォント幅係数:</label>
       <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05" />
+      <small>1=テキストの長さをフォントサイズをもとに計算する</small>
     </div>
-    <div class="setting">
+    <div class="setting hidden">
       <label for="soft-break-chars">ソフト改行文字:</label>
       <textarea class="textarea-field" id="soft-break-chars" rows="2" placeholder="改行文字を入力"> </textarea>
     </div>
@@ -453,12 +462,10 @@
       if (hasSelection) {
         step2Number.classList.remove('inactive');
 
-        if (selectedNodeIds.size > 0 && hasManualSelection) {
-          selectionStatus.textContent = `${selectedNodeIds.size}つのスキャン結果 + 手動選択のテキストに適用`;
-        } else if (selectedNodeIds.size > 0) {
+        if (selectedNodeIds.size > 0) {
           selectionStatus.textContent = `${selectedNodeIds.size}つのテキストを選択中`;
-        } else if (hasManualSelection) {
-          selectionStatus.textContent = 'テキストを手動選択中';
+        }else{
+          selectionStatus.textContent = `テキストを選択中`;
         }
         selectionStatus.classList.add('has-selection');
       } else {
@@ -478,7 +485,7 @@
     // Configuration management (simplified)
     function getConfig() {
       const softBreakText = document.getElementById('soft-break-chars').value.trim();
-      
+
       // 簡素化されたソフト改行文字処理
       let softBreakChars = [];
       if (softBreakText) {
@@ -490,12 +497,12 @@
             softBreakChars.push(char);
           }
         }
-        
+
         // 通常文字列も追加
         const lines = softBreakText.split(/[\r\n]+/).filter(line => line.trim());
         softBreakChars.push(...lines.filter(line => !softBreakChars.includes(line)));
       }
-      
+
       // デフォルト設定
       if (softBreakChars.length === 0) {
         softBreakChars = ['\u2028'];
@@ -579,7 +586,7 @@
         count.textContent = '';
         controls.style.display = 'none';
         list.innerHTML = '';
-        
+
         figma.notify(`問題のあるテキストは見つかりませんでした`);
       }
 
@@ -587,11 +594,11 @@
     }
 
     function showError(message) {
-        figma.notify(`${message}`, { error: true });
+      figma.notify(`${message}`, { error: true });
     }
 
     function showWarning(message) {
-        figma.notify(`${message}`, { error: true });
+      figma.notify(`${message}`, { error: true });
     }
 
     // 選択とフォーカス機能
