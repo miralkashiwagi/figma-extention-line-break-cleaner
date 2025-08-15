@@ -514,18 +514,14 @@
         lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
         fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
         softBreakChars: softBreakChars,
-        excludePatterns: [],
         enabledDetections: [
           'auto-width', 'edge-breaking', 'soft-break'//常に3つ有効
         ].filter(Boolean)
       };
     }
 
-    // UI State management
-    function setProcessingState(processing) {
-      isProcessing = processing;
-      // ボタンのdisabled処理を削除
-    }
+    // UI State management (simplified)
+    // isProcessing state is tracked but no UI changes needed
 
     function showResults(results, scanInfo) {
       currentResults = results;
@@ -673,7 +669,7 @@
     // Event listeners
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
-      setProcessingState(true);
+      isProcessing = true;
 
       const header = document.getElementById('results-count');
       header.textContent = 'スキャン中...';
@@ -718,12 +714,12 @@
 
       switch (msg.type) {
         case 'scan-complete':
-          setProcessingState(false);
+          isProcessing = false;
           showResults(msg.results, msg.scanInfo);
           break;
 
         case 'error':
-          setProcessingState(false);
+          isProcessing = false;
           showError(msg.message);
           break;
 
@@ -812,7 +808,7 @@
     }
 
     // Initialize
-    setProcessingState(false);
+    isProcessing = false;
     initializeUI();
     updateScanModeInfo();
     updateStep2State();

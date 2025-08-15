@@ -40,7 +40,6 @@ interface ProcessingConfig {
   minCharacters: number;
   lineBreakThreshold: number;
   softBreakChars: string[];
-  excludePatterns: string[];
   enabledDetections: DetectionType[];
   fontWidthMultiplier?: number;
 }
@@ -592,6 +591,29 @@ class TextProcessor {
 
     return result;
   }
+
+  // パブリックメソッド：外部からの直接処理用
+  public processTextDirectly(
+    text: string,
+    containerWidth: number,
+    fontSize: number,
+    options: {
+      removeLineBreaks?: boolean;
+      convertSoftBreaks?: boolean;
+    }
+  ): string {
+    let processedText = text;
+
+    if (options.removeLineBreaks) {
+      processedText = this.removeLineBreaksJapanesePriority(processedText, containerWidth, fontSize, true);
+    }
+
+    if (options.convertSoftBreaks) {
+      processedText = this.convertSoftBreaksToHard(processedText);
+    }
+
+    return processedText;
+  }
 }
 
 // ===== FONT MANAGER CLASS =====
@@ -902,17 +924,11 @@ class BatchProcessor {
         const changes: ProcessingChanges = {};
         let processedText = node.characters;
 
-        if (forceChanges.removeLineBreaks) {
-          const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
-          processedText = this.processor['removeLineBreaksJapanesePriority'](processedText, node.width, fontSize, true);
+        const fontSize = typeof node.fontSize === 'number' ? node.fontSize : PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE;
+        processedText = this.processor.processTextDirectly(processedText, node.width, fontSize, forceChanges);
 
-          if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
-            changes.newAutoResize = 'HEIGHT';
-          }
-        }
-
-        if (forceChanges.convertSoftBreaks) {
-          processedText = this.processor['convertSoftBreaksToHard'](processedText);
+        if (forceChanges.removeLineBreaks && node.textAutoResize === 'WIDTH_AND_HEIGHT') {
+          changes.newAutoResize = 'HEIGHT';
         }
 
         if (processedText !== node.characters) {
@@ -962,18 +978,18 @@ const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 10,
   lineBreakThreshold: 0.8,
   softBreakChars: ['\u2028'],
-  excludePatterns: [],
   enabledDetections: ['auto-width', 'edge-breaking', 'soft-break'],
   fontWidthMultiplier: 1.0
 };
 
 // ===== MAIN PLUGIN LOGIC =====
-let batchProcessor: BatchProcessor;
+let batchProcessor: BatchProcessor | null = null;
 let currentResults: TextAnalysisResult[] = [];
+let currentConfig: ProcessingConfig | null = null;
 
-function loadConfig(): ProcessingConfig {
+async function loadConfig(): Promise<ProcessingConfig> {
   try {
-    const saved = figma.clientStorage.getAsync('line-break-cleaner-config');
+    const saved = await figma.clientStorage.getAsync('line-break-cleaner-config');
     return saved ? { ...DEFAULT_CONFIG, ...saved } : DEFAULT_CONFIG;
   } catch {
     return DEFAULT_CONFIG;
@@ -1087,12 +1103,21 @@ figma.ui.onmessage = async (msg: UIMessage) => {
   }
 };
 
+function getBatchProcessor(config: ProcessingConfig): BatchProcessor {
+  // 設定が変更された場合のみ新しいインスタンスを作成
+  if (!batchProcessor || !currentConfig || JSON.stringify(currentConfig) !== JSON.stringify(config)) {
+    batchProcessor = new BatchProcessor(config);
+    currentConfig = { ...config };
+  }
+  return batchProcessor;
+}
+
 async function handleScan(config: ProcessingConfig): Promise<void> {
   await saveConfig(config);
-  batchProcessor = new BatchProcessor(config);
+  const processor = getBatchProcessor(config);
 
   try {
-    currentResults = await batchProcessor.scanCurrentPage((progress) => {
+    currentResults = await processor.scanCurrentPage((progress) => {
       // Progress updates could be sent to UI here if needed
     });
 
@@ -1112,7 +1137,7 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
 
 async function handleApplySelected(config: ProcessingConfig, options: any): Promise<void> {
   await saveConfig(config);
-  batchProcessor = new BatchProcessor(config);
+  const processor = getBatchProcessor(config);
 
   try {
     const selection = figma.currentPage.selection;
@@ -1122,7 +1147,7 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
 
     // Process manually selected nodes
     for (const node of selectedTextNodes) {
-      const result = await batchProcessor.processIndividualNode(node, {
+      const result = await processor.processIndividualNode(node, {
         removeLineBreaks: options.removeLineBreaks,
         convertSoftBreaks: options.convertSoftBreaks
       });
