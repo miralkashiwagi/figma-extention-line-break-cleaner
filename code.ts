@@ -490,10 +490,10 @@ class TextProcessor {
         const estimatedWidth = this.utils.estimateTextWidth(currentTrimmed, fontSize);
         const widthRatio = estimatedWidth / containerWidth;
 
-        if (widthRatio < this.config.lineBreakThreshold) {
-          shouldBreakAfter[i] = true;
+        if (widthRatio >= this.config.lineBreakThreshold) {
+          shouldBreakAfter[i] = false;  // 幅が閾値以上なら改行を削除
         } else {
-          shouldBreakAfter[i] = false;
+          shouldBreakAfter[i] = true;   // 幅が閾値未満なら改行を保持
         }
       }
     }
@@ -882,7 +882,7 @@ class BatchProcessor {
 // ===== DEFAULT CONFIGURATION =====
 const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 10,
-  lineBreakThreshold: 0.98,
+  lineBreakThreshold: 0.95,
   softBreakChars: ['\u2028'],
   fontWidthMultiplier: 1.0
 };
