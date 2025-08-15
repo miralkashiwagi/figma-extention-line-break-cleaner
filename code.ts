@@ -6,13 +6,8 @@
 const PROCESSING_CONSTANTS = {
   DEFAULT_FONT_SIZE: 16,
   DEFAULT_CONTAINER_WIDTH: 400,
-  ANALYSIS_CHUNK_SIZE: 10,
-  PROCESSING_CHUNK_SIZE: 5,
-  CONFIDENCE_LEVELS: {
-    AUTO_WIDTH: 0.9,
-    EDGE_BREAKING: 0.8,
-    SOFT_BREAK: 0.7
-  },
+  CHUNK_SIZE: 20,
+
   NOTIFICATION_TIMEOUTS: {
     COMPLETE: 3000,
     ERROR: 5000
@@ -24,9 +19,7 @@ type DetectionType = 'auto-width' | 'edge-breaking' | 'soft-break';
 
 interface DetectedIssue {
   type: DetectionType;
-  confidence: number;
   description: string;
-  lineNumbers?: number[];
 }
 
 interface TextAnalysisResult {
@@ -56,10 +49,7 @@ interface ProcessingResult {
   changes?: ProcessingChanges;
 }
 
-interface ProgressUpdate {
-  current: number;
-  total: number;
-}
+
 
 interface UIMessage {
   type: string;
@@ -85,7 +75,10 @@ class SharedUtilities {
   }
 
   updateConfig(config: ProcessingConfig): void {
-    this.widthCalculator = new TextWidthCalculator(config);
+    // 設定が変更された場合のみ新しいインスタンスを作成
+    if (this.widthCalculator.config !== config) {
+      this.widthCalculator = new TextWidthCalculator(config);
+    }
   }
 
   static getFontSize(node: TextNode): number {
@@ -94,7 +87,7 @@ class SharedUtilities {
 }
 
 class TextWidthCalculator {
-  private config: ProcessingConfig;
+  public config: ProcessingConfig;
 
   constructor(config: ProcessingConfig) {
     this.config = config;
@@ -253,9 +246,7 @@ class TextAnalyzer {
       if ((currentAutoResize === 'NONE' || currentAutoResize === 'HEIGHT' || currentAutoResize === 'WIDTH_AND_HEIGHT') && currentText.includes('\n')) {
         issues.push({
           type: 'auto-width',
-          confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.AUTO_WIDTH,
-          description: 'Text with line breaks can be processed',
-          lineNumbers: this.getLineNumbers(currentText)
+          description: 'Text with line breaks can be processed'
         });
       }
     } catch (error) {
@@ -280,9 +271,7 @@ class TextAnalyzer {
         if (suspiciousLines.length > 0) {
           issues.push({
             type: 'edge-breaking',
-            confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.EDGE_BREAKING,
-            description: `${suspiciousLines.length} lines appear to break at container edge`,
-            lineNumbers: suspiciousLines
+            description: `${suspiciousLines.length} lines appear to break at container edge`
           });
         }
       }
@@ -306,9 +295,7 @@ class TextAnalyzer {
         if (softBreakCount > 0) {
           issues.push({
             type: 'soft-break',
-            confidence: PROCESSING_CONSTANTS.CONFIDENCE_LEVELS.SOFT_BREAK,
-            description: `${softBreakCount} soft breaks can be converted to hard breaks`,
-            lineNumbers: this.getSoftBreakLines(currentText)
+            description: `${softBreakCount} soft breaks can be converted to hard breaks`
           });
         }
       }
@@ -319,10 +306,7 @@ class TextAnalyzer {
     return issues;
   }
 
-  private getLineNumbers(text: string): number[] {
-    const lines = text.split(this.getBreakPattern());
-    return lines.map((_, index) => index + 1).filter(lineNum => lineNum < lines.length);
-  }
+
 
   private findEdgeBreakingLines(text: string, containerWidth: number, fontSize: number = PROCESSING_CONSTANTS.DEFAULT_FONT_SIZE): number[] {
     const lines = this.simulateWordWrap(text, containerWidth, fontSize);
@@ -387,21 +371,7 @@ class TextAnalyzer {
     return lines;
   }
 
-  private getSoftBreakLines(text: string): number[] {
-    const lines = text.split(this.getBreakPattern());
-    const softBreakLines: number[] = [];
 
-    lines.forEach((line, index) => {
-      for (const softBreakChar of this.config.softBreakChars) {
-        if (line.includes(softBreakChar)) {
-          softBreakLines.push(index + 1);
-          break;
-        }
-      }
-    });
-
-    return softBreakLines;
-  }
 
   private generateEstimatedChanges(originalText: string, issues: DetectedIssue[]): string {
     if (issues.length === 0) {
@@ -498,9 +468,7 @@ class TextProcessor {
       changes.newAutoResize = 'HEIGHT';
       processedText = this.removeLineBreaksJapanesePriority(processedText, node.width, fontSize);
     } else {
-      const sortedIssues = issues.sort((a, b) => b.confidence - a.confidence);
-
-      for (const issue of sortedIssues) {
+      for (const issue of issues) {
         switch (issue.type) {
           case 'auto-width':
             changes.newAutoResize = 'HEIGHT';
@@ -740,7 +708,6 @@ class FontManager {
 // ===== BATCH PROCESSOR CLASS =====
 class BatchProcessor {
   private isProcessing = false;
-  private isCancelled = false;
   private analyzer: TextAnalyzer;
   private processor: TextProcessor;
   private fontManager: FontManager;
@@ -759,26 +726,17 @@ class BatchProcessor {
     nodes: TextNode[]
   ): Promise<TextAnalysisResult[]> {
     this.isProcessing = true;
-    this.isCancelled = false;
 
     const results: TextAnalysisResult[] = [];
-    const CHUNK_SIZE = PROCESSING_CONSTANTS.ANALYSIS_CHUNK_SIZE;
+    const CHUNK_SIZE = PROCESSING_CONSTANTS.CHUNK_SIZE;
 
     try {
       for (let i = 0; i < nodes.length; i += CHUNK_SIZE) {
-        if (this.isCancelled) {
-          break;
-        }
-
         const chunk = nodes.slice(i, i + CHUNK_SIZE);
 
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
           const currentIndex = i + j;
-
-          if (this.isCancelled) {
-            break;
-          }
 
           try {
             const result = await this.analyzer.analyzeTextNode(node);
@@ -792,8 +750,6 @@ class BatchProcessor {
               originalText: node.characters || ''
             });
           }
-
-          await this.yieldToUI();
         }
       }
 
@@ -810,11 +766,10 @@ class BatchProcessor {
     analysisResults: TextAnalysisResult[]
   ): Promise<ProcessingResult[]> {
     this.isProcessing = true;
-    this.isCancelled = false;
 
     const results: ProcessingResult[] = [];
     const nodesToProcess = analysisResults.filter(result => result.issues.length > 0);
-    const CHUNK_SIZE = PROCESSING_CONSTANTS.PROCESSING_CHUNK_SIZE;
+    const CHUNK_SIZE = PROCESSING_CONSTANTS.CHUNK_SIZE;
 
     try {
       const { processable, issues } = await this.fontManager.validateNodesForProcessing(
@@ -830,19 +785,11 @@ class BatchProcessor {
       }
 
       for (let i = 0; i < processable.length; i += CHUNK_SIZE) {
-        if (this.isCancelled) {
-          break;
-        }
-
         const chunk = processable.slice(i, i + CHUNK_SIZE);
 
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
           const currentIndex = i + j;
-
-          if (this.isCancelled) {
-            break;
-          }
 
           try {
             const analysisResult = analysisResults.find(r => r.node.id === node.id);
@@ -871,8 +818,6 @@ class BatchProcessor {
               error: error instanceof Error ? error.message : 'Unknown error'
             });
           }
-
-          await this.yieldToUI();
         }
       }
 
@@ -957,24 +902,16 @@ class BatchProcessor {
     }
   }
 
-  private async yieldToUI(): Promise<void> {
-    // チャンクサイズが小さいので、yieldは不要
-    // 必要に応じて復活可能: return new Promise(resolve => setTimeout(resolve, 0));
-  }
 
-  cancel(): void {
-    this.isCancelled = true;
-  }
 
-  isCurrentlyProcessing(): boolean {
-    return this.isProcessing;
-  }
+
+
 }
 
 // ===== DEFAULT CONFIGURATION =====
 const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 10,
-  lineBreakThreshold: 0.8,
+  lineBreakThreshold: 0.98,
   softBreakChars: ['\u2028'],
   enabledDetections: ['auto-width', 'edge-breaking', 'soft-break'],
   fontWidthMultiplier: 1.0
@@ -1226,8 +1163,7 @@ function handleSelectNodes(nodeIds: string[]): void {
 // ===== PLUGIN INITIALIZATION =====
 figma.showUI(__html__, {
   width: 320,
-  height: 600,
-  themeColors: true
+  height: 600
 });
 
 // Send initial state
