@@ -908,7 +908,7 @@ class BatchProcessor {
 
 // ===== DEFAULT CONFIGURATION =====
 const DEFAULT_CONFIG: ProcessingConfig = {
-  minCharacters: 10,
+  minCharacters: 20,
   lineBreakThreshold: 0.95,
   softBreakChars: ['\u2028'],
   fontWidthMultiplier: 1.0

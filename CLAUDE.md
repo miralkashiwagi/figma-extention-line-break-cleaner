@@ -36,8 +36,8 @@ npm run lint:fix
 
 ### Detection Algorithms
 
-**Auto-width Detection (Always Active):**
-- Processes all `textAutoResize: "WIDTH"`, `"WIDTH_AND_HEIGHT"`, and fixed-size nodes with line breaks
+**Auto-width Detection:**
+- Processes `textAutoResize: "WIDTH_AND_HEIGHT"` nodes with line breaks
 - Minimum character threshold (default: 20, configurable)
 - Automatically converts to `textAutoResize: "HEIGHT"`
 - Applies intelligent line break removal
@@ -46,7 +46,7 @@ npm run lint:fix
 - Uses `simulateWordWrap()` to detect where lines actually break in Figma
 - Accounts for word wrapping, not just explicit \n characters
 - Calculates line width ratio vs container width using font metrics
-- Configurable threshold (default: 0.8) for edge-breaking detection
+- Configurable threshold (default: 0.95) for edge-breaking detection
 - Handles Japanese, English, and mixed-language text accurately
 
 **Soft Break Processing:**
@@ -67,23 +67,23 @@ npm run lint:fix
 **Intelligent Workflow:**
 1. Plugin automatically detects current selection state
 2. "スキャン実行" processes page/selection based on current context
-3. Results show as selectable list with text content preview (50 chars)
+3. Results show as selectable list with text content preview (30 chars)
 4. "選択中のノードに適用" bypasses scan, processes current selection directly
 5. "検出をクリア" clears results and resets state
 
 **Settings Panel:**
-- Configurable detection thresholds and character limits
-- Soft break character textarea with Unicode auto-detection
-- Detection type toggles (right-edge breaking, soft break detection)
-- Font width multiplier for text width calculation tuning
+- Configurable detection thresholds and character limits (minimum characters: default 20)
+- Line break threshold for edge-breaking detection (default: 0.95)
+- Font width multiplier for text width calculation tuning (default: 1.0)
+- Soft break character textarea with Unicode auto-detection (default: LSEP)
 
 ### Advanced Features
 
 **Selection Management:**
 - Bidirectional sync between UI selection and Figma canvas
-- Selection state preserved during operations
+- Selection state preserved during operations  
 - Clear selection controls ("選択解除", "すべて選択")
-- Auto-focus selected nodes in Figma interface
+- Node selection without viewport auto-scrolling (performance optimization)
 
 **Configuration Persistence:**
 - Settings automatically saved using `figma.clientStorage`
@@ -95,6 +95,7 @@ npm run lint:fix
 - Sentence boundary protection (preserves breaks after 。！？)
 - Bullet point detection and preservation
 - Font loading and validation before text manipulation
+- Direct text processing API (`processTextDirectly`) for force operations
 
 ## Technical Implementation Details
 
@@ -106,7 +107,6 @@ npm run lint:fix
 - Critical for accurate right-edge breaking detection
 
 ### Text Processing Pipeline
-```typescript
 1. Font validation and loading
 2. Word wrap simulation for visual line detection
 3. Line-by-line analysis for break conditions:
@@ -116,13 +116,12 @@ npm run lint:fix
 4. Intelligent line combination with proper spacing
 5. Optional soft break conversion
 6. TextNode property updates (characters, textAutoResize)
-```
 
 ### Selection and Scope Management
 - `findTextNodes()` method handles both page-wide and selection-based scanning
 - Automatic detection of selection state for UI display
-- `scannedNodeIds` Set tracks which nodes are in current result set
-- Selection sync only active when scan results exist (performance optimization)
+- `currentResults` array stores analysis results for UI rendering
+- `selectedNodeIds` Set tracks UI selection state for batch operations
 
 ## TypeScript Configuration
 
@@ -130,6 +129,7 @@ npm run lint:fix
 - Strict mode enabled
 - Figma plugin typings via `@figma/plugin-typings`
 - Code must be compiled before plugin execution
+- Uses constant `CHUNK_SIZE: 20` for batch processing performance
 
 ## Important Implementation Details
 
@@ -141,10 +141,10 @@ npm run lint:fix
 - Missing/locked fonts handled gracefully with error reporting
 
 ### Performance Optimizations
-- Chunked processing (50 nodes for analysis, 25 for processing) prevents UI freezing
-- `yieldToUI()` provides breathing room during batch operations
-- Selection monitoring only active when scan results exist
+- Chunked processing (20 nodes per chunk) prevents UI freezing
+- Batch processing with notification timeouts for user feedback  
 - Configuration caching reduces repeated storage access
+- Efficient regex pattern caching with size limits (max 10 patterns)
 
 ### Current UI State Management
 - No progress bars or cancel functionality (simplified UX)
