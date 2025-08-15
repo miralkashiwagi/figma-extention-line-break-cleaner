@@ -416,22 +416,22 @@
   <div class="tab-panel" id="panel-settings">
     <div class="setting">
       <label for="min-chars">スキャン対象の最小文字数:</label>
-      <input type="number" class="input-field" id="min-chars" min="1" max="1000" />
+      <input type="number" class="input-field" id="min-chars" min="1" max="1000" placeholder="20" />
       <small>文字の少ないテキスト要素はスキャンから除外する</small>
     </div>
     <div class="setting">
       <label for="line-break-threshold">改行処理閾値:</label>
-      <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1" />
-      <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する</small>
+      <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1" placeholder="0.95" />
+      <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する。<br>※半角文字やカーニングがあると計算が狂う場合があります</small>
     </div>
-    <div class="setting">
+    <div class="setting hidden">
       <label for="font-width-multiplier">フォント幅係数:</label>
-      <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05" />
-      <small>1=テキストの長さをフォントサイズをもとに計算する</small>
+      <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05" placeholder="1.0" />
+      <small>日本語（全角）の場合、通常は1です</small>
     </div>
     <div class="setting hidden">
       <label for="soft-break-chars">ソフト改行文字:</label>
-      <textarea class="textarea-field" id="soft-break-chars" rows="2" placeholder="改行文字を入力"> </textarea>
+      <textarea class="textarea-field" id="soft-break-chars" rows="2" placeholder=" (デフォルト: LSEP文字)"></textarea>
     </div>
   </div>
 
@@ -482,7 +482,7 @@
       selectionStatus.classList.add('has-selection');
     }
 
-    // Configuration management (simplified)
+    // Configuration management - relies on values set by code.ts
     function getConfig() {
       const softBreakText = document.getElementById('soft-break-chars').value.trim();
 
@@ -503,15 +503,16 @@
         softBreakChars.push(...lines.filter(line => !softBreakChars.includes(line)));
       }
 
-      // デフォルト設定
+      // Note: デフォルト値は code.ts の DEFAULT_CONFIG に依存
+      // UI側では入力値をそのまま返し、無効値の場合はcode.ts側で処理される
       if (softBreakChars.length === 0) {
-        softBreakChars = ['\u2028'];
+        softBreakChars = ['\u2028']; // 最低限のフォールバック
       }
 
       return {
-        minCharacters: parseInt(document.getElementById('min-chars').value) || 20,
-        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value) || 0.95,
-        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value) || 1.0,
+        minCharacters: parseInt(document.getElementById('min-chars').value),
+        lineBreakThreshold: parseFloat(document.getElementById('line-break-threshold').value),
+        fontWidthMultiplier: parseFloat(document.getElementById('font-width-multiplier').value),
         softBreakChars: softBreakChars
       };
     }
@@ -763,20 +764,19 @@
     // 設定をUIに反映
     function applyConfigToUI(config) {
       // config は既に code.ts の loadConfig() で DEFAULT_CONFIG とマージ済み
+      // UIの入力フィールドに値を設定（これが唯一の値の源泉となる）
       document.getElementById('min-chars').value = config.minCharacters;
       document.getElementById('line-break-threshold').value = config.lineBreakThreshold;
       document.getElementById('font-width-multiplier').value = config.fontWidthMultiplier;
 
+      // placeholderもデフォルト値で更新（code.tsから受け取った値を使用）
+      document.getElementById('min-chars').placeholder = config.minCharacters;
+      document.getElementById('line-break-threshold').placeholder = config.lineBreakThreshold;
+      document.getElementById('font-width-multiplier').placeholder = config.fontWidthMultiplier;
+
       // ソフト改行文字を適切に表示（改行で区切らない）
       document.getElementById('soft-break-chars').value = config.softBreakChars.join('');
-    }
-
-    // 初期設定を適用
-    function initializeUI() {
-      // デフォルトのソフト改行文字を設定
-      if (!document.getElementById('soft-break-chars').value.trim()) {
-        document.getElementById('soft-break-chars').value = '\u2028';
-      }
+      document.getElementById('soft-break-chars').placeholder = ` (デフォルト: ${config.softBreakChars.join('')})`;
     }
 
     // UIの選択状態を更新
@@ -828,7 +828,6 @@
 
     // Initialize
     isProcessing = false;
-    initializeUI();
     updateScanModeInfo();
     updateStep2State();
 

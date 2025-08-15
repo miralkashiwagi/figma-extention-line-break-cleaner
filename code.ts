@@ -922,7 +922,19 @@ let currentConfig: ProcessingConfig | null = null;
 async function loadConfig(): Promise<ProcessingConfig> {
   try {
     const saved = await figma.clientStorage.getAsync('line-break-cleaner-config');
-    return saved ? { ...DEFAULT_CONFIG, ...saved } : DEFAULT_CONFIG;
+    if (!saved) return DEFAULT_CONFIG;
+    
+    // 有効な値のみをマージ（falsyな値はデフォルト値を使用）
+    return {
+      minCharacters: (typeof saved.minCharacters === 'number' && saved.minCharacters > 0) 
+        ? saved.minCharacters : DEFAULT_CONFIG.minCharacters,
+      lineBreakThreshold: (typeof saved.lineBreakThreshold === 'number' && saved.lineBreakThreshold > 0) 
+        ? saved.lineBreakThreshold : DEFAULT_CONFIG.lineBreakThreshold,
+      fontWidthMultiplier: (typeof saved.fontWidthMultiplier === 'number' && saved.fontWidthMultiplier > 0) 
+        ? saved.fontWidthMultiplier : DEFAULT_CONFIG.fontWidthMultiplier,
+      softBreakChars: (Array.isArray(saved.softBreakChars) && saved.softBreakChars.length > 0) 
+        ? saved.softBreakChars : DEFAULT_CONFIG.softBreakChars
+    };
   } catch {
     return DEFAULT_CONFIG;
   }
@@ -930,7 +942,9 @@ async function loadConfig(): Promise<ProcessingConfig> {
 
 async function saveConfig(config: ProcessingConfig): Promise<void> {
   try {
-    await figma.clientStorage.setAsync('line-break-cleaner-config', config);
+    // UI から受け取った設定をデフォルト値とマージして保存
+    const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+    await figma.clientStorage.setAsync('line-break-cleaner-config', mergedConfig);
   } catch (error) {
     console.warn('Failed to save config:', error);
   }
