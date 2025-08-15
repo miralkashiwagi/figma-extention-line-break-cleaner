@@ -676,7 +676,7 @@
       setProcessingState(true);
 
       const header = document.getElementById('results-count');
-      header.innerHTML = '<div class="info">スキャン中...</div>';
+      header.textContent = 'スキャン中...';
 
       parent.postMessage({
         pluginMessage: {
@@ -807,7 +807,7 @@
     function updateScanModeDisplay(mode, details) {
       const scanModeInfo = document.getElementById('scan-mode-info');
       if (scanModeInfo) {
-        scanModeInfo.innerHTML = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
+        scanModeInfo.textContent = `スキャンモード: ${mode}${details ? ` (${details})` : ''}`;
       }
     }
 
