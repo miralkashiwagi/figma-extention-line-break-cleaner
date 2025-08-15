@@ -15,10 +15,9 @@ const PROCESSING_CONSTANTS = {
 } as const;
 
 // ===== TYPE DEFINITIONS =====
-type DetectionType = 'auto-width' | 'edge-breaking' | 'soft-break';
 
 interface DetectedIssue {
-  type: DetectionType;
+  type: 'auto-width' | 'edge-breaking' | 'soft-break';
   description: string;
 }
 
@@ -33,7 +32,6 @@ interface ProcessingConfig {
   minCharacters: number;
   lineBreakThreshold: number;
   softBreakChars: string[];
-  enabledDetections: DetectionType[];
   fontWidthMultiplier?: number;
 }
 
@@ -75,8 +73,8 @@ class SharedUtilities {
   }
 
   updateConfig(config: ProcessingConfig): void {
-    // 設定が変更された場合のみ新しいインスタンスを作成
-    if (this.widthCalculator.config !== config) {
+    // fontWidthMultiplierが変更された場合のみ新しいインスタンスを作成
+    if (this.widthCalculator.config.fontWidthMultiplier !== config.fontWidthMultiplier) {
       this.widthCalculator = new TextWidthCalculator(config);
     }
   }
@@ -211,20 +209,14 @@ class TextAnalyzer {
       };
     }
 
-    if (this.config.enabledDetections.includes('auto-width')) {
-      const autoWidthIssues = this.detectAutoWidthIssues(node);
-      issues.push(...autoWidthIssues);
-    }
+    const autoWidthIssues = this.detectAutoWidthIssues(node);
+    issues.push(...autoWidthIssues);
 
-    if (this.config.enabledDetections.includes('edge-breaking')) {
-      const edgeBreakingIssues = this.detectEdgeBreaking(node);
-      issues.push(...edgeBreakingIssues);
-    }
+    const edgeBreakingIssues = this.detectEdgeBreaking(node);
+    issues.push(...edgeBreakingIssues);
 
-    if (this.config.enabledDetections.includes('soft-break')) {
-      const softBreakIssues = this.detectSoftBreaks(node);
-      issues.push(...softBreakIssues);
-    }
+    const softBreakIssues = this.detectSoftBreaks(node);
+    issues.push(...softBreakIssues);
 
     const estimatedChanges = this.generateEstimatedChanges(currentText, issues);
 
@@ -378,23 +370,23 @@ class TextAnalyzer {
       return 'No changes needed';
     }
 
-    const changes: string[] = [];
+    const changeTypes = new Set<string>();
 
     issues.forEach(issue => {
       switch (issue.type) {
         case 'auto-width':
-          changes.push('幅の設定＆端の改行');
+          changeTypes.add('幅の設定＆端の改行');
           break;
         case 'edge-breaking':
-          changes.push('端の改行');
+          changeTypes.add('端の改行');
           break;
         case 'soft-break':
-          changes.push('ソフト改行');
+          changeTypes.add('ソフト改行');
           break;
       }
     });
 
-    return changes.join(', ');
+    return Array.from(changeTypes).join(', ');
   }
 
   findTextNodes(ignoreMinCharacters: boolean = false): TextNode[] {
@@ -913,7 +905,6 @@ const DEFAULT_CONFIG: ProcessingConfig = {
   minCharacters: 10,
   lineBreakThreshold: 0.98,
   softBreakChars: ['\u2028'],
-  enabledDetections: ['auto-width', 'edge-breaking', 'soft-break'],
   fontWidthMultiplier: 1.0
 };
 
@@ -1069,11 +1060,11 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
     // スキャン完了通知
     const issuesFound = currentResults.filter(r => r.issues && r.issues.length > 0).length;
     if (issuesFound > 0) {
-      figma.notify(`スキャン完了: ${issuesFound}つのテキストで問題を検出`, {
+      figma.notify(`スキャン完了: ${issuesFound}つのテキストを検出`, {
         timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
       });
     } else {
-      figma.notify('スキャン完了: 問題のあるテキストは見つかりませんでした', {
+      figma.notify('スキャン完了: 対象となるテキストは見つかりませんでした', {
         timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
       });
     }
