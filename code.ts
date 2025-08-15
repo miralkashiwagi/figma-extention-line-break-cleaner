@@ -18,7 +18,6 @@ const PROCESSING_CONSTANTS = {
 
 interface DetectedIssue {
   type: 'auto-width' | 'edge-breaking' | 'soft-break';
-  description: string;
 }
 
 interface TextAnalysisResult {
@@ -70,13 +69,6 @@ class SharedUtilities {
 
   estimateTextWidth(text: string, fontSize: number): number {
     return this.widthCalculator.estimateTextWidth(text, fontSize);
-  }
-
-  updateConfig(config: ProcessingConfig): void {
-    // fontWidthMultiplierが変更された場合のみ新しいインスタンスを作成
-    if (this.widthCalculator.config.fontWidthMultiplier !== config.fontWidthMultiplier) {
-      this.widthCalculator = new TextWidthCalculator(config);
-    }
   }
 
   static getFontSize(node: TextNode): number {
@@ -157,10 +149,6 @@ class RegexPatternCache {
 
     return this.cache.get(cacheKey)!;
   }
-
-  clear(): void {
-    this.cache.clear();
-  }
 }
 
 // ===== TEXT ANALYZER CLASS =====
@@ -218,7 +206,7 @@ class TextAnalyzer {
     const softBreakIssues = this.detectSoftBreaks(node);
     issues.push(...softBreakIssues);
 
-    const estimatedChanges = this.generateEstimatedChanges(currentText, issues);
+    const estimatedChanges = this.generateEstimatedChanges(issues);
 
     return {
       node,
@@ -237,8 +225,7 @@ class TextAnalyzer {
 
       if ((currentAutoResize === 'NONE' || currentAutoResize === 'HEIGHT' || currentAutoResize === 'WIDTH_AND_HEIGHT') && currentText.includes('\n')) {
         issues.push({
-          type: 'auto-width',
-          description: 'Text with line breaks can be processed'
+          type: 'auto-width'
         });
       }
     } catch (error) {
@@ -262,8 +249,7 @@ class TextAnalyzer {
 
         if (suspiciousLines.length > 0) {
           issues.push({
-            type: 'edge-breaking',
-            description: `${suspiciousLines.length} lines appear to break at container edge`
+            type: 'edge-breaking'
           });
         }
       }
@@ -286,8 +272,7 @@ class TextAnalyzer {
 
         if (softBreakCount > 0) {
           issues.push({
-            type: 'soft-break',
-            description: `${softBreakCount} soft breaks can be converted to hard breaks`
+            type: 'soft-break'
           });
         }
       }
@@ -365,7 +350,7 @@ class TextAnalyzer {
 
 
 
-  private generateEstimatedChanges(originalText: string, issues: DetectedIssue[]): string {
+  private generateEstimatedChanges(issues: DetectedIssue[]): string {
     if (issues.length === 0) {
       return 'No changes needed';
     }
@@ -428,12 +413,6 @@ class TextAnalyzer {
         textNode.visible &&
         minCharCheck;
     }) as TextNode[];
-  }
-
-  getSelectedTextNodes(): TextNode[] {
-    return figma.currentPage.selection.filter(
-      node => node.type === 'TEXT' && !node.locked && node.visible
-    ) as TextNode[];
   }
 }//
 // ===== TEXT PROCESSOR CLASS =====
