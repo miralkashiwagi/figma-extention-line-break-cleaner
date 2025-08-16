@@ -421,12 +421,14 @@
     </div>
     <div class="setting">
       <label for="line-break-threshold">改行処理閾値:</label>
-      <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1" placeholder="0.95" />
+      <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1"
+        placeholder="0.95" />
       <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する。<br>※半角文字やカーニングがあると計算が狂う場合があります</small>
     </div>
     <div class="setting hidden">
       <label for="font-width-multiplier">フォント幅係数:</label>
-      <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05" placeholder="1.0" />
+      <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05"
+        placeholder="1.0" />
       <small>日本語（全角）の場合、通常は1です</small>
     </div>
     <div class="setting hidden">
@@ -464,7 +466,7 @@
 
         if (selectedNodeIds.size > 0) {
           selectionStatus.textContent = `${selectedNodeIds.size}つのテキストを選択中`;
-        }else{
+        } else {
           selectionStatus.textContent = `テキストを選択中`;
         }
         selectionStatus.classList.add('has-selection');
@@ -695,7 +697,8 @@
       const config = getConfig();
       const manualOptions = {
         removeLineBreaks: document.getElementById('manual-remove-breaks').checked,
-        convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked
+        convertSoftBreaks: document.getElementById('manual-convert-soft-breaks').checked,
+        selectedNodeIds: Array.from(selectedNodeIds) // スキャン結果から選択されたノードIDを送信
       };
 
       parent.postMessage({

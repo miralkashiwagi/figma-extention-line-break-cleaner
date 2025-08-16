@@ -328,6 +328,7 @@ class TextAnalyzer {
 
   private simulateWordWrap(text: string, containerWidth: number, fontSize: number): string[] {
     const lines: string[] = [];
+    // 分析時は全ての改行文字（通常の改行とソフト改行）を考慮する
     const paragraphs = text.split(this.getBreakPattern());
 
     for (const paragraph of paragraphs) {
@@ -499,7 +500,9 @@ class TextProcessor {
       return text;
     }
 
-    const lines = text.split(this.getBreakPattern());
+    // 通常の改行文字（\n）のみを処理対象とする
+    // ソフト改行文字は元のまま保持し、convertSoftBreaksオプションで別途処理される
+    const lines = text.split('\n');
     const shouldBreakAfter: boolean[] = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -1116,18 +1119,46 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
   try {
     const selection = figma.currentPage.selection;
     const selectedTextNodes = selection.filter(node => node.type === 'TEXT') as TextNode[];
+    
+    // スキャン結果からUIで選択されたノードも取得
+    // （この情報はUI側から送信される必要があるため、現在は空配列）
+    const scanSelectedNodeIds = options.selectedNodeIds || [];
+    const scanSelectedNodes = scanSelectedNodeIds
+      .map((id: string) => figma.currentPage.findOne(node => node.id === id && node.type === 'TEXT'))
+      .filter((node: any) => node !== null) as TextNode[];
 
+    // 重複を除去して全処理対象ノードを取得
+    const allNodesToProcess = new Map<string, TextNode>();
+    
+    // 手動選択されたノード
+    selectedTextNodes.forEach(node => {
+      allNodesToProcess.set(node.id, node);
+    });
+    
+    // スキャン結果から選択されたノード
+    scanSelectedNodes.forEach(node => {
+      allNodesToProcess.set(node.id, node);
+    });
+
+    const totalNodes = allNodesToProcess.size;
     let processedCount = 0;
+
+    if (totalNodes === 0) {
+      sendMessage({
+        type: 'warning',
+        message: 'クリーニング対象のテキストが選択されていません'
+      });
+      return;
+    }
 
     // UI側にクリーニング開始を通知
     sendMessage({
       type: 'processing-start',
-      count: selectedTextNodes.length
+      count: totalNodes
     });
 
-    // Process manually selected nodes
-    for (let i = 0; i < selectedTextNodes.length; i++) {
-      const node = selectedTextNodes[i];
+    // 全ノードをユーザーオプションに従って処理
+    for (const node of allNodesToProcess.values()) {
       const result = await processor.processIndividualNode(node, {
         removeLineBreaks: options.removeLineBreaks,
         convertSoftBreaks: options.convertSoftBreaks
@@ -1137,9 +1168,6 @@ async function handleApplySelected(config: ProcessingConfig, options: any): Prom
         processedCount++;
       }
     }
-
-    // Process nodes from scan results (if any are selected in UI)
-    // This would require additional logic to track UI selections
 
     figma.notify(`クリーニング完了！${processedCount}つのテキストを処理しました`, {
       timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
