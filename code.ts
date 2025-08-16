@@ -1087,14 +1087,6 @@ class BatchProcessor {
   async scanCurrentPage(): Promise<TextAnalysisResult[]> {
     const allNodes = this.analyzer.findTextNodes();
 
-    if (allNodes.length === 0) {
-      figma.notify('現在のページにテキストノードが見つかりません', {
-        error: true,
-        timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
-      });
-      throw new Error('No text nodes found in current page');
-    }
-
     return await this.analyzeNodes(allNodes);
   }
 

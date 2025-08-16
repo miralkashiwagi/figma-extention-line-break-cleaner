@@ -590,20 +590,11 @@
         count.textContent = '';
         controls.style.display = 'none';
         list.innerHTML = '';
-
-        figma.notify(`問題のあるテキストは見つかりませんでした`);
       }
 
       updateStep2State();
     }
 
-    function showError(message) {
-      figma.notify(`${message}`, { error: true });
-    }
-
-    function showWarning(message) {
-      figma.notify(`${message}`, { error: true });
-    }
 
     // 選択とフォーカス機能
     function updateSelectionAndFocus() {
@@ -732,11 +723,6 @@
           const errorHeader = document.getElementById('results-count');
           errorHeader.textContent = '';
           document.getElementById('results-header').style.display = 'none';
-          showError(msg.message);
-          break;
-
-        case 'warning':
-          showWarning(msg.message);
           break;
 
         case 'processing-start':
