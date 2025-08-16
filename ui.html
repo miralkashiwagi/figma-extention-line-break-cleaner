@@ -282,6 +282,7 @@
 
     .setting.hidden {
       opacity: 0;
+      pointer-events: none;
     }
 
     .setting label {
@@ -423,13 +424,13 @@
       <label for="line-break-threshold">改行処理閾値:</label>
       <input type="number" class="input-field" id="line-break-threshold" min="0.1" max="1.0" step="0.1"
         placeholder="0.95" />
-      <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する。<br>※半角文字やカーニングがあると計算が狂う場合があります</small>
+      <small>1に近いほど要素幅の右端ギリギリの改行だけを除去する。<br>※うまく改行除去されない場合は、数字を小さめに変更してください</small>
     </div>
     <div class="setting hidden">
       <label for="font-width-multiplier">フォント幅係数:</label>
       <input type="number" class="input-field" id="font-width-multiplier" min="0.5" max="1.5" step="0.05"
         placeholder="1.0" />
-      <small>日本語（全角）の場合、通常は1です</small>
+      <small>日本語（全角）文字の幅調整。混在テキストで改行位置がずれる場合に調整してください</small>
     </div>
     <div class="setting hidden">
       <label for="soft-break-chars">ソフト改行文字:</label>

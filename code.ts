@@ -50,7 +50,7 @@ interface ProcessingResult {
 
 interface UIMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ===== UTILITY CLASSES =====
@@ -78,26 +78,73 @@ class SharedUtilities {
 
 class TextWidthCalculator {
   public config: ProcessingConfig;
+  private measurementCache: Map<string, number> = new Map();
+  private characterWidthCache: Map<string, number> = new Map();
+
+  // キャッシュサイズの定数
+  private static readonly CACHE_LIMITS = {
+    MEASUREMENT: 500,  // テキスト全体のキャッシュ
+    CHARACTER: 200     // 個別文字のキャッシュ（より小さく）
+  } as const;
+
+  // 正規表現は文字コードベース判定に置き換えたため削除
+
+  // 文字コード定数（可読性と保守性向上）
+  private static readonly CHAR_CODES = {
+    // 数字
+    DIGIT_0: 48, DIGIT_9: 57, DIGIT_1: 49,
+    // 大文字
+    UPPER_A: 65, UPPER_Z: 90, UPPER_I: 73, UPPER_M: 77, UPPER_W: 87,
+    // 小文字
+    LOWER_A: 97, LOWER_Z: 122, LOWER_I: 105, LOWER_L: 108,
+    LOWER_T: 116, LOWER_F: 102, LOWER_M: 109, LOWER_W: 119,
+    // 記号
+    SPACE: 32, EXCLAMATION: 33, DOT: 46, COMMA: 44, COLON: 58,
+    SEMICOLON: 59, HYPHEN: 45, PAREN_OPEN: 40, PAREN_CLOSE: 41,
+    AT: 64, PERCENT: 37, AMPERSAND: 38
+  } as const;
+
+  // 最小限の特殊文字テーブル（文字コード・Unicode範囲判定でカバーできない例外のみ）
+  private static readonly CHARACTER_WIDTH_MAP: ReadonlyMap<string, number> = new Map([
+    // 特殊記号・通貨（高精度が必要な文字のみ）
+    ['€', 0.6], ['£', 0.5], ['¥', 0.6], ['©', 0.7], ['®', 0.7], ['™', 0.7],
+    ['°', 0.35], ['±', 0.5], ['×', 0.5], ['÷', 0.5], ['≠', 0.5], ['≤', 0.5], ['≥', 0.5],
+    ['…', 0.7], ['–', 0.4], ['—', 0.7], ['\u2018', 0.2], ['\u2019', 0.2], ['\u201C', 0.35], ['\u201D', 0.35],
+    ['•', 0.3], ['‰', 0.9], ['§', 0.5], ['¶', 0.5], ['†', 0.4], ['‡', 0.4]
+  ]);
 
   constructor(config: ProcessingConfig) {
     this.config = config;
   }
 
   estimateTextWidth(text: string, fontSize: number): number {
+    // 効率的なキャッシュキー生成（短いテキストのみキャッシュ）
+    if (text.length <= 100) { // 長いテキストはキャッシュしない
+      const cacheKey = `${text}_${fontSize}`;
+      const cached = this.measurementCache.get(cacheKey);
+      if (cached !== undefined) {
+        return cached;
+      }
+    }
+
     let totalWidth = 0;
 
+    // 実際の文字幅に基づく計算
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
-      const charCode = char.charCodeAt(0);
+      const charWidth = this.measureActualCharacterWidth(char, fontSize);
+      totalWidth += charWidth;
+    }
 
-      const baseMultiplier = this.config.fontWidthMultiplier || 1.0;
-      if (this.isFullWidthCharacter(charCode)) {
-        totalWidth += fontSize * baseMultiplier;
-      } else if (this.isHalfWidthCharacter(charCode)) {
-        totalWidth += fontSize * (baseMultiplier * 0.5);
-      } else {
-        totalWidth += fontSize * (baseMultiplier * 0.8);
-      }
+    // 効率的なキャッシュ管理（短いテキストのみ）
+    if (text.length <= 100) {
+      const cacheKey = `${text}_${fontSize}`;
+      this.addToCache(this.measurementCache, cacheKey, totalWidth, TextWidthCalculator.CACHE_LIMITS.MEASUREMENT);
+    }
+
+    // デバッグモードでのみログ出力
+    if (this.shouldDebugLog(text)) {
+      this.logTextAnalysis(text, totalWidth, fontSize);
     }
 
     return totalWidth;
@@ -119,6 +166,212 @@ class TextWidthCalculator {
       (charCode >= 0x0020 && charCode <= 0x007E) || // 基本ラテン文字
       (charCode >= 0xFF61 && charCode <= 0xFF9F)    // 半角カタカナ
     );
+  }
+
+  private isWideLatinCharacter(char: string): boolean {
+    // 幅広のラテン文字
+    return /[MWQOCDG@%&ABDEFHKNPRSUVXYZ]/.test(char);
+  }
+
+  private isNarrowLatinCharacter(charCode: number): boolean {
+    // 狭いラテン文字
+    const char = String.fromCharCode(charCode);
+    return /[iltjfI1|!.,;/()[\]]/.test(char);
+  }
+
+  private isPunctuation(charCode: number): boolean {
+    // 句読点・記号類
+    const char = String.fromCharCode(charCode);
+    return /[！？。、，．：；「」『』（）【】〈〉《》〔〕［］｛｝]/.test(char);
+  }
+
+  private getCharacterBreakdown(text: string, fontSize: number): string {
+    let fullWidth = 0, halfWidth = 0, wide = 0, narrow = 0, other = 0;
+    let totalMeasuredWidth = 0;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const charCode = char.charCodeAt(0);
+      const measuredWidth = this.measureActualCharacterWidth(char, fontSize);
+      totalMeasuredWidth += measuredWidth;
+
+      if (this.isFullWidthCharacter(charCode)) {
+        fullWidth++;
+      } else if (measuredWidth < fontSize * 0.3) {
+        narrow++; // 実測で狭い文字
+      } else if (measuredWidth > fontSize * 0.7) {
+        wide++; // 実測で幅広い文字
+      } else if (this.isHalfWidthCharacter(charCode)) {
+        halfWidth++;
+      } else {
+        other++;
+      }
+    }
+
+    return `全角:${fullWidth} 半角:${halfWidth} 幅広:${wide} 狭い:${narrow} その他:${other} (実測合計:${totalMeasuredWidth.toFixed(1)}px)`;
+  }
+
+  // デバッグログの条件判定
+  private shouldDebugLog(text: string): boolean {
+    // デバッグモードの判定（本番では false に設定）
+    const DEBUG_MODE = false; // 開発時は true に変更
+    return DEBUG_MODE && text.length > 10;
+  }
+
+  // デバッグ情報の出力
+  private logTextAnalysis(text: string, totalWidth: number, fontSize: number): void {
+    const breakdown = this.getCharacterBreakdown(text, fontSize);
+    const halfWidthChars = this.getHalfWidthCharacters(text);
+
+    console.log(`テキスト: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    console.log(`計算幅: ${totalWidth}px (${breakdown})`);
+
+    if (halfWidthChars.length > 0) {
+      console.log(`半角文字: "${halfWidthChars}"`);
+    }
+  }
+
+  private getHalfWidthCharacters(text: string): string {
+    // 効率的な文字列構築（配列結合を使用）
+    const halfWidthChars: string[] = [];
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const charCode = char.charCodeAt(0);
+      if (this.isHalfWidthCharacter(charCode)) {
+        halfWidthChars.push(char);
+      }
+    }
+    return halfWidthChars.join('');
+  }
+
+  // 実際の文字幅を測定（文字幅テーブルベース）
+  private measureActualCharacterWidth(char: string, fontSize: number): number {
+    const cacheKey = `${char}_${fontSize}`;
+    if (this.characterWidthCache.has(cacheKey)) {
+      return this.characterWidthCache.get(cacheKey)!;
+    }
+
+    // Figmaプラグイン環境ではDOM APIが使用できないため、
+    // 文字幅テーブルベースの計算を使用
+    const width = this.getFallbackCharacterWidth(char, fontSize);
+
+    // 効率的なキャッシュ管理
+    this.addToCache(this.characterWidthCache, cacheKey, width, TextWidthCalculator.CACHE_LIMITS.CHARACTER);
+
+    return width;
+  }
+
+  // 効率的な文字幅計算
+  private getFallbackCharacterWidth(char: string, fontSize: number): number {
+    const charCode = char.charCodeAt(0);
+    const baseMultiplier = this.config.fontWidthMultiplier || 1.0;
+
+    // 全角文字の処理（最も頻繁なケース）
+    if (this.isFullWidthCharacter(charCode)) {
+      // 日本語句読点は通常の全角文字より若干狭い
+      const multiplier = this.isPunctuation(charCode) ? 0.95 : 1.0;
+      // baseMultiplierで全体的な調整を行う（UI設定の「フォント幅係数」）
+      return fontSize * baseMultiplier * multiplier;
+    }
+
+    // 特殊文字テーブルから取得（例外的な幅のみ）
+    const specialWidth = TextWidthCalculator.CHARACTER_WIDTH_MAP.get(char);
+    if (specialWidth !== undefined) {
+      return fontSize * baseMultiplier * specialWidth;
+    }
+
+    // 効率的な推定処理（大部分の文字）
+    return fontSize * baseMultiplier * this.estimateUnknownCharacterWidth(char, charCode);
+  }
+
+  // 高速Unicode範囲判定
+  private estimateUnknownCharacterWidth(char: string, charCode: number): number {
+    // 基本ラテン文字範囲（最頻出）
+    if (charCode <= 0x007E) {
+      return charCode >= 0x0020 ? this.estimateLatinCharacterWidth(char) : 0.53;
+    }
+
+    // 高頻度範囲の早期判定
+    if (charCode <= 0x00FF) return 0.58;  // ラテン1補助
+    if (charCode <= 0x017F) return 0.58;  // ラテン拡張A
+
+    // 特殊記号範囲（低頻度）
+    if (charCode >= 0x2000) {
+      if (charCode <= 0x206F) return 0.43;  // 一般句読点
+      if (charCode >= 0x20A0 && charCode <= 0x20CF) return 0.63;  // 通貨記号
+      if (charCode >= 0x2100 && charCode <= 0x214F) return 0.73;  // 文字様記号
+    }
+
+    // デフォルト値
+    return 0.53;
+  }
+
+  // 超高速文字幅推定（文字コードベース、定数使用で可読性向上）
+  private estimateLatinCharacterWidth(char: string): number {
+    const charCode = char.charCodeAt(0);
+    const { CHAR_CODES } = TextWidthCalculator;
+
+    // 数字の高速判定
+    if (charCode >= CHAR_CODES.DIGIT_0 && charCode <= CHAR_CODES.DIGIT_9) {
+      return charCode === CHAR_CODES.DIGIT_1 ? 0.32 : 0.53;
+    }
+
+    // 大文字の高速判定
+    if (charCode >= CHAR_CODES.UPPER_A && charCode <= CHAR_CODES.UPPER_Z) {
+      if (charCode === CHAR_CODES.UPPER_M || charCode === CHAR_CODES.UPPER_W) return 0.85;
+      if (charCode === CHAR_CODES.UPPER_I) return 0.32;
+      return 0.68;
+    }
+
+    // 小文字の高速判定
+    if (charCode >= CHAR_CODES.LOWER_A && charCode <= CHAR_CODES.LOWER_Z) {
+      if (charCode === CHAR_CODES.LOWER_I || charCode === CHAR_CODES.LOWER_L) return 0.27;
+      if (charCode === CHAR_CODES.LOWER_T || charCode === CHAR_CODES.LOWER_F) return 0.37;
+      if (charCode === CHAR_CODES.LOWER_M || charCode === CHAR_CODES.LOWER_W) return 0.75;
+      return 0.53;
+    }
+
+    // 基本記号の高速判定
+    switch (charCode) {
+      case CHAR_CODES.SPACE: return 0.27;
+      case CHAR_CODES.EXCLAMATION: return 0.25;
+      case CHAR_CODES.DOT: return 0.27;
+      case CHAR_CODES.COMMA: return 0.27;
+      case CHAR_CODES.COLON: return 0.27;
+      case CHAR_CODES.SEMICOLON: return 0.27;
+      case CHAR_CODES.HYPHEN: return 0.37;
+      case CHAR_CODES.PAREN_OPEN: case CHAR_CODES.PAREN_CLOSE: return 0.3;
+      case CHAR_CODES.AT: return 0.8;
+      case CHAR_CODES.PERCENT: return 0.75;
+      case CHAR_CODES.AMPERSAND: return 0.65;
+      default: return 0.48;
+    }
+  }
+
+  // 効率的なキャッシュ管理（LRU的な動作）
+  private addToCache(cache: Map<string, number>, key: string, value: number, limit: number): void {
+    if (cache.size >= limit) {
+      // 最も古いエントリを削除
+      const firstKey = cache.keys().next().value;
+      if (firstKey) {
+        cache.delete(firstKey);
+      }
+    }
+    cache.set(key, value);
+  }
+
+  // キャッシュクリア（メモリ管理用）
+  public clearCaches(): void {
+    this.measurementCache.clear();
+    this.characterWidthCache.clear();
+  }
+
+  // キャッシュ統計（デバッグ用）
+  public getCacheStats(): { measurement: number; character: number } {
+    return {
+      measurement: this.measurementCache.size,
+      character: this.characterWidthCache.size
+    };
   }
 }
 
@@ -737,7 +990,7 @@ class BatchProcessor {
 
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
-          const currentIndex = i + j;
+          const _currentIndex = i + j;
 
           try {
             const result = await this.analyzer.analyzeTextNode(node);
@@ -790,7 +1043,7 @@ class BatchProcessor {
 
         for (let j = 0; j < chunk.length; j++) {
           const node = chunk[j];
-          const currentIndex = i + j;
+          const _currentIndex = i + j;
 
           try {
             const analysisResult = analysisResults.find(r => r.node.id === node.id);
@@ -926,16 +1179,16 @@ async function loadConfig(): Promise<ProcessingConfig> {
   try {
     const saved = await figma.clientStorage.getAsync('line-break-cleaner-config');
     if (!saved) return DEFAULT_CONFIG;
-    
+
     // 有効な値のみをマージ（falsyな値はデフォルト値を使用）
     return {
-      minCharacters: (typeof saved.minCharacters === 'number' && saved.minCharacters > 0) 
+      minCharacters: (typeof saved.minCharacters === 'number' && saved.minCharacters > 0)
         ? saved.minCharacters : DEFAULT_CONFIG.minCharacters,
-      lineBreakThreshold: (typeof saved.lineBreakThreshold === 'number' && saved.lineBreakThreshold > 0) 
+      lineBreakThreshold: (typeof saved.lineBreakThreshold === 'number' && saved.lineBreakThreshold > 0)
         ? saved.lineBreakThreshold : DEFAULT_CONFIG.lineBreakThreshold,
-      fontWidthMultiplier: (typeof saved.fontWidthMultiplier === 'number' && saved.fontWidthMultiplier > 0) 
+      fontWidthMultiplier: (typeof saved.fontWidthMultiplier === 'number' && saved.fontWidthMultiplier > 0)
         ? saved.fontWidthMultiplier : DEFAULT_CONFIG.fontWidthMultiplier,
-      softBreakChars: (Array.isArray(saved.softBreakChars) && saved.softBreakChars.length > 0) 
+      softBreakChars: (Array.isArray(saved.softBreakChars) && saved.softBreakChars.length > 0)
         ? saved.softBreakChars : DEFAULT_CONFIG.softBreakChars
     };
   } catch {
@@ -1010,28 +1263,33 @@ figma.ui.onmessage = async (msg: UIMessage) => {
   try {
     switch (msg.type) {
       case 'scan':
-        await handleScan(msg.config);
+        await handleScan(msg.config as ProcessingConfig);
         break;
 
       case 'apply-selected':
-        await handleApplySelected(msg.config, msg.options);
+        await handleApplySelected(msg.config as ProcessingConfig, msg.options as {
+          removeLineBreaks?: boolean;
+          convertSoftBreaks?: boolean;
+          selectedNodeIds?: string[];
+        });
         break;
 
       case 'select-nodes':
-        handleSelectNodes(msg.nodeIds);
+        handleSelectNodes(msg.nodeIds as string[]);
         break;
 
       case 'get-current-selection':
         updateSelectionState();
         break;
 
-      case 'load-config':
+      case 'load-config': {
         const config = await loadConfig();
         sendMessage({
           type: 'config-loaded',
           config
         });
         break;
+      }
 
       case 'get-scan-mode':
         sendMessage({
@@ -1112,29 +1370,33 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
   }
 }
 
-async function handleApplySelected(config: ProcessingConfig, options: any): Promise<void> {
+async function handleApplySelected(config: ProcessingConfig, options: {
+  removeLineBreaks?: boolean;
+  convertSoftBreaks?: boolean;
+  selectedNodeIds?: string[];
+}): Promise<void> {
   await saveConfig(config);
   const processor = getBatchProcessor(config);
 
   try {
     const selection = figma.currentPage.selection;
     const selectedTextNodes = selection.filter(node => node.type === 'TEXT') as TextNode[];
-    
+
     // スキャン結果からUIで選択されたノードも取得
     // （この情報はUI側から送信される必要があるため、現在は空配列）
     const scanSelectedNodeIds = options.selectedNodeIds || [];
     const scanSelectedNodes = scanSelectedNodeIds
       .map((id: string) => figma.currentPage.findOne(node => node.id === id && node.type === 'TEXT'))
-      .filter((node: any) => node !== null) as TextNode[];
+      .filter((node: SceneNode | null) => node !== null) as TextNode[];
 
     // 重複を除去して全処理対象ノードを取得
     const allNodesToProcess = new Map<string, TextNode>();
-    
+
     // 手動選択されたノード
     selectedTextNodes.forEach(node => {
       allNodesToProcess.set(node.id, node);
     });
-    
+
     // スキャン結果から選択されたノード
     scanSelectedNodes.forEach(node => {
       allNodesToProcess.set(node.id, node);
