@@ -27,6 +27,13 @@ interface TextAnalysisResult {
   originalText: string;
 }
 
+interface UIAnalysisResult {
+  id: string;
+  preview: string;
+  estimatedChanges: string;
+  issueTypes: DetectedIssue['type'][];
+}
+
 interface ProcessingConfig {
   minCharacters: number;
   lineBreakThreshold: number;
@@ -418,56 +425,55 @@ class TextAnalyzer {
     return this.utils.getBreakPattern(this.config.softBreakChars);
   }
 
-  async analyzeTextNode(node: TextNode): Promise<TextAnalysisResult> {
+  async analyzeTextNode(node: TextNode): Promise<TextAnalysisResult | null> {
     const issues: DetectedIssue[] = [];
 
     if (node.hasMissingFont) {
-      return {
-        node,
-        issues: [],
-        estimatedChanges: 'Skipped (missing font)',
-        originalText: node.characters
-      };
+      return null;
     }
 
     if (node.locked || !node.visible) {
-      return {
-        node,
-        issues: [],
-        estimatedChanges: 'Skipped (locked or hidden)',
-        originalText: node.characters
-      };
+      return null;
     }
 
-    const currentText = node.characters;
+    let currentText: string;
+    let nodeWidth: number;
+    let fontSize: number;
+    let autoResize: TextNode['textAutoResize'];
+    let paragraphSpacing: TextNode['paragraphSpacing'];
+
+    try {
+      currentText = node.characters;
+      nodeWidth = node.width;
+      fontSize = SharedUtilities.getFontSize(node);
+      autoResize = node.textAutoResize;
+      paragraphSpacing = node.paragraphSpacing;
+    } catch (error) {
+      console.warn('Could not read text node properties:', node.name);
+      return null;
+    }
 
     if (currentText.length < this.config.minCharacters) {
-      return {
-        node,
-        issues: [],
-        estimatedChanges: 'Skipped (too short)',
-        originalText: currentText
-      };
+      return null;
     }
 
     // 改行文字やソフト改行文字を含まないテキストは除外
     if (!this.hasBreakCharacters(currentText)) {
-      return {
-        node,
-        issues: [],
-        estimatedChanges: 'Skipped (no line breaks)',
-        originalText: currentText
-      };
+      return null;
     }
 
-    const autoWidthIssues = this.detectAutoWidthIssues(node);
+    const autoWidthIssues = this.detectAutoWidthIssues(currentText, autoResize);
     issues.push(...autoWidthIssues);
 
-    const edgeBreakingIssues = this.detectEdgeBreaking(node);
+    const edgeBreakingIssues = this.detectEdgeBreaking(currentText, nodeWidth, fontSize, autoResize, node.name);
     issues.push(...edgeBreakingIssues);
 
-    const softBreakIssues = this.detectSoftBreaks(node);
+    const softBreakIssues = this.detectSoftBreaks(currentText, paragraphSpacing, node.name);
     issues.push(...softBreakIssues);
+
+    if (issues.length === 0) {
+      return null;
+    }
 
     const estimatedChanges = this.generateEstimatedChanges(issues);
 
@@ -479,35 +485,29 @@ class TextAnalyzer {
     };
   }
 
-  private detectAutoWidthIssues(node: TextNode): DetectedIssue[] {
+  private detectAutoWidthIssues(currentText: string, currentAutoResize: TextNode['textAutoResize']): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
 
-    try {
-      const currentAutoResize = node.textAutoResize;
-      const currentText = node.characters;
-
-      // WIDTH_AND_HEIGHTのテキストのみをauto-width問題として検出
-      if (currentAutoResize === 'WIDTH_AND_HEIGHT' && currentText.includes('\n')) {
-        issues.push({
-          type: 'auto-width'
-        });
-      }
-    } catch (error) {
-      console.warn('Could not read textAutoResize for node:', node.name);
+    // WIDTH_AND_HEIGHTのテキストのみをauto-width問題として検出
+    if (currentAutoResize === 'WIDTH_AND_HEIGHT' && currentText.includes('\n')) {
+      issues.push({
+        type: 'auto-width'
+      });
     }
 
     return issues;
   }
 
-  private detectEdgeBreaking(node: TextNode): DetectedIssue[] {
+  private detectEdgeBreaking(
+    currentText: string,
+    nodeWidth: number,
+    fontSize: number,
+    autoResize: TextNode['textAutoResize'],
+    nodeName: string
+  ): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
 
     try {
-      const currentText = node.characters;
-      const nodeWidth = node.width;
-      const fontSize = SharedUtilities.getFontSize(node);
-
-      const autoResize = node.textAutoResize;
       if (autoResize === 'NONE' || autoResize === 'HEIGHT') {
         const suspiciousLines = this.findEdgeBreakingLines(currentText, nodeWidth, fontSize);
 
@@ -518,19 +518,20 @@ class TextAnalyzer {
         }
       }
     } catch (error) {
-      console.warn('Could not analyze edge breaking for node:', node.name);
+      console.warn('Could not analyze edge breaking for node:', nodeName);
     }
 
     return issues;
   }
 
-  private detectSoftBreaks(node: TextNode): DetectedIssue[] {
+  private detectSoftBreaks(
+    currentText: string,
+    paragraphSpacing: TextNode['paragraphSpacing'],
+    nodeName: string
+  ): DetectedIssue[] {
     const issues: DetectedIssue[] = [];
 
     try {
-      const currentText = node.characters;
-      const paragraphSpacing = node.paragraphSpacing;
-
       if (paragraphSpacing === 0) {
         const softBreakCount = this.countSoftBreaks(currentText);
 
@@ -541,7 +542,7 @@ class TextAnalyzer {
         }
       }
     } catch (error) {
-      console.warn('Could not analyze soft breaks for node:', node.name);
+      console.warn('Could not analyze soft breaks for node:', nodeName);
     }
 
     return issues;
@@ -994,17 +995,16 @@ class BatchProcessor {
 
           try {
             const result = await this.analyzer.analyzeTextNode(node);
-            results.push(result);
+            if (result) {
+              results.push(result);
+            }
 
           } catch (error) {
-            results.push({
-              node,
-              issues: [],
-              estimatedChanges: `Analysis error: ${error}`,
-              originalText: node.characters || ''
-            });
+            console.warn('Analysis error:', error);
           }
         }
+
+        await this.yieldToUI();
       }
 
     } catch (error) {
@@ -1014,6 +1014,10 @@ class BatchProcessor {
     }
 
     return results;
+  }
+
+  private async yieldToUI(): Promise<void> {
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
   }
 
   async processNodes(
@@ -1165,6 +1169,7 @@ const DEFAULT_CONFIG: ProcessingConfig = {
 // ===== MAIN PLUGIN LOGIC =====
 let batchProcessor: BatchProcessor | null = null;
 let currentResults: TextAnalysisResult[] = [];
+let currentNodeMap: Map<string, TextNode> = new Map();
 let currentConfig: ProcessingConfig | null = null;
 
 async function loadConfig(): Promise<ProcessingConfig> {
@@ -1202,6 +1207,24 @@ function sendMessage(message: UIMessage): void {
   figma.ui.postMessage(message);
 }
 
+function createTextPreview(text: string): string {
+  const compactText = text.replace(/\s+/g, ' ').trim();
+  return compactText.substring(0, 30) + (compactText.length > 30 ? '...' : '');
+}
+
+function toUIAnalysisResult(result: TextAnalysisResult): UIAnalysisResult {
+  return {
+    id: result.node.id,
+    preview: createTextPreview(result.originalText),
+    estimatedChanges: result.estimatedChanges,
+    issueTypes: result.issues.map(issue => issue.type)
+  };
+}
+
+function rebuildCurrentNodeMap(results: TextAnalysisResult[]): void {
+  currentNodeMap = new Map(results.map(result => [result.node.id, result.node]));
+}
+
 function getScanModeInfo(): { mode: string; details?: string } {
   const selection = figma.currentPage.selection;
 
@@ -1226,9 +1249,10 @@ function getScanModeInfo(): { mode: string; details?: string } {
 function updateSelectionState(): void {
   const selection = figma.currentPage.selection;
   const selectedTextNodes = selection.filter(node => node.type === 'TEXT');
+  const selectedTextNodeIds = new Set(selectedTextNodes.map(node => node.id));
 
   const selectedNodeIds = currentResults
-    .filter(result => selectedTextNodes.some(node => node.id === result.node.id))
+    .filter(result => selectedTextNodeIds.has(result.node.id))
     .map(result => result.node.id);
 
   const hasManualSelection = selectedTextNodes.length > 0;
@@ -1292,6 +1316,7 @@ figma.ui.onmessage = async (msg: UIMessage) => {
 
       case 'clear-results':
         currentResults = [];
+        currentNodeMap = new Map();
         break;
     }
   } catch (error) {
@@ -1329,9 +1354,10 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
 
   try {
     currentResults = await processor.scanCurrentPage();
+    rebuildCurrentNodeMap(currentResults);
 
     // スキャン完了通知
-    const issuesFound = currentResults.filter(r => r.issues && r.issues.length > 0).length;
+    const issuesFound = currentResults.length;
     if (issuesFound > 0) {
       figma.notify(`スキャン完了: ${issuesFound}つのテキストを検出`, {
         timeout: PROCESSING_CONSTANTS.NOTIFICATION_TIMEOUTS.COMPLETE
@@ -1344,7 +1370,7 @@ async function handleScan(config: ProcessingConfig): Promise<void> {
 
     sendMessage({
       type: 'scan-complete',
-      results: currentResults,
+      results: currentResults.map(toUIAnalysisResult),
       scanInfo: getScanModeInfo()
     });
 
@@ -1375,11 +1401,10 @@ async function handleApplySelected(config: ProcessingConfig, options: {
     const selectedTextNodes = selection.filter(node => node.type === 'TEXT') as TextNode[];
 
     // スキャン結果からUIで選択されたノードも取得
-    // （この情報はUI側から送信される必要があるため、現在は空配列）
     const scanSelectedNodeIds = options.selectedNodeIds || [];
     const scanSelectedNodes = scanSelectedNodeIds
-      .map((id: string) => figma.currentPage.findOne(node => node.id === id && node.type === 'TEXT'))
-      .filter((node: SceneNode | null) => node !== null) as TextNode[];
+      .map((id: string) => currentNodeMap.get(id))
+      .filter((node): node is TextNode => node !== undefined && !node.removed);
 
     // 重複を除去して全処理対象ノードを取得
     const allNodesToProcess = new Map<string, TextNode>();
@@ -1443,8 +1468,8 @@ async function handleApplySelected(config: ProcessingConfig, options: {
 
 function handleSelectNodes(nodeIds: string[]): void {
   const nodes = nodeIds
-    .map(id => figma.currentPage.findOne(node => node.id === id))
-    .filter(node => node !== null);
+    .map(id => currentNodeMap.get(id))
+    .filter((node): node is TextNode => node !== undefined && !node.removed);
 
   figma.currentPage.selection = nodes;
 

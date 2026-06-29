@@ -443,6 +443,7 @@
     let currentResults = [];
     let isProcessing = false;
     let selectedNodeIds = new Set();
+    let resultElementById = new Map();
     let hasManualSelection = false; // 手動選択の状態を追跡
 
     // Tab management
@@ -526,6 +527,7 @@
     function showResults(results, scanInfo) {
       currentResults = results;
       selectedNodeIds.clear();
+      resultElementById.clear();
 
       const summary = document.getElementById('results-summary');
       const header = document.getElementById('results-header');
@@ -533,56 +535,43 @@
       const controls = document.getElementById('results-controls');
       const list = document.getElementById('results-list');
 
-      const withIssues = results.filter(r => r.issues && r.issues.length > 0);
-
-      if (withIssues.length > 0) {
+      if (results.length > 0) {
         summary.style.display = 'none';
         header.style.display = 'flex';
-        count.textContent = `${withIssues.length}つのテキストを検出`;
+        count.textContent = `${results.length}つのテキストを検出`;
         controls.style.display = 'flex';
 
         list.innerHTML = '';
-        withIssues.forEach(result => {
+        const fragment = document.createDocumentFragment();
+        results.forEach(result => {
           const item = document.createElement('div');
           item.className = 'result-item';
-          item.dataset.nodeId = result.node.id;
+          item.dataset.nodeId = result.id;
 
-          const textPreview = (result.originalText || '').substring(0, 30) +
-            (result.originalText && result.originalText.length > 30 ? '...' : '');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'node-checkbox';
+          checkbox.dataset.nodeId = result.id;
 
-          item.innerHTML = `
-                    <input type="checkbox" class="node-checkbox" data-node-id="${result.node.id}">
-                    <div class="result-content">
-                        <div class="result-text">${textPreview || 'テキスト'}</div>
-                        <div class="result-changes">${result.estimatedChanges || '改行の問題'}</div>
-                    </div>
-                `;
+          const content = document.createElement('div');
+          content.className = 'result-content';
 
-          // Event listeners
-          item.addEventListener('click', (e) => {
-            if (e.target.type !== 'checkbox') {
-              const checkbox = item.querySelector('.node-checkbox');
-              checkbox.checked = !checkbox.checked;
-              checkbox.dispatchEvent(new Event('change'));
-            }
-          });
+          const text = document.createElement('div');
+          text.className = 'result-text';
+          text.textContent = result.preview || 'テキスト';
 
-          const checkbox = item.querySelector('.node-checkbox');
-          checkbox.addEventListener('change', (e) => {
-            const nodeId = e.target.dataset.nodeId;
-            if (e.target.checked) {
-              selectedNodeIds.add(nodeId);
-              item.classList.add('selected');
-            } else {
-              selectedNodeIds.delete(nodeId);
-              item.classList.remove('selected');
-            }
-            updateStep2State();
-            updateSelectionAndFocus();
-          });
+          const changes = document.createElement('div');
+          changes.className = 'result-changes';
+          changes.textContent = result.estimatedChanges || '改行の問題';
 
-          list.appendChild(item);
+          content.appendChild(text);
+          content.appendChild(changes);
+          item.appendChild(checkbox);
+          item.appendChild(content);
+          resultElementById.set(result.id, item);
+          fragment.appendChild(item);
         });
+        list.appendChild(fragment);
       } else {
         // 結果が0件の場合はUIをリセット
         summary.style.display = 'block';
@@ -590,6 +579,7 @@
         count.textContent = '';
         controls.style.display = 'none';
         list.innerHTML = '';
+        resultElementById.clear();
       }
 
       updateStep2State();
@@ -598,8 +588,6 @@
 
     // 選択とフォーカス機能
     function updateSelectionAndFocus() {
-      const selectedNodes = currentResults.filter(r => selectedNodeIds.has(r.node.id));
-
       // Figmaでノードを選択（空の場合も含む）
       parent.postMessage({
         pluginMessage: {
@@ -622,16 +610,19 @@
 
     // すべて選択/解除機能
     function selectAllNodes() {
-      const checkboxes = document.querySelectorAll('.node-checkbox');
-      checkboxes.forEach(checkbox => {
-        checkbox.checked = true;
-        checkbox.dispatchEvent(new Event('change'));
+      selectedNodeIds = new Set(currentResults.map(result => result.id));
+      resultElementById.forEach(item => {
+        item.classList.add('selected');
+        const checkbox = item.querySelector('.node-checkbox');
+        if (checkbox) checkbox.checked = true;
       });
+      updateStep2State();
+      updateSelectionAndFocus();
     }
 
     function selectNoneNodes() {
       selectedNodeIds.clear();
-      document.querySelectorAll('.result-item').forEach(item => {
+      resultElementById.forEach(item => {
         item.classList.remove('selected');
         const checkbox = item.querySelector('.node-checkbox');
         if (checkbox) checkbox.checked = false;
@@ -643,6 +634,7 @@
     function clearResults() {
       currentResults = [];
       selectedNodeIds.clear();
+      resultElementById.clear();
       // 手動選択状態はクリアしない（Figmaの選択は保持）
 
       const summary = document.getElementById('results-summary');
@@ -665,6 +657,30 @@
     }
 
     // Event listeners
+    document.getElementById('results-list').addEventListener('click', (e) => {
+      const item = e.target.closest('.result-item');
+      if (!item) return;
+
+      const checkbox = item.querySelector('.node-checkbox');
+      if (!checkbox) return;
+
+      if (e.target !== checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+
+      const nodeId = item.dataset.nodeId;
+      if (checkbox.checked) {
+        selectedNodeIds.add(nodeId);
+        item.classList.add('selected');
+      } else {
+        selectedNodeIds.delete(nodeId);
+        item.classList.remove('selected');
+      }
+
+      updateStep2State();
+      updateSelectionAndFocus();
+    });
+
     document.getElementById('scan').onclick = () => {
       const config = getConfig();
       isProcessing = true;
@@ -772,7 +788,7 @@
     // UIの選択状態を更新
     function updateUISelection(figmaSelectedNodeIds, hasManualSelectionFromFigma = false, manualSelectionCount = 0) {
       selectedNodeIds.clear();
-      document.querySelectorAll('.result-item').forEach(item => {
+      resultElementById.forEach(item => {
         item.classList.remove('selected');
         const checkbox = item.querySelector('.node-checkbox');
         if (checkbox) {
@@ -782,7 +798,7 @@
 
       // スキャン結果リストにあるノードの選択状態を更新
       figmaSelectedNodeIds.forEach(nodeId => {
-        const resultItem = document.querySelector(`[data-node-id="${nodeId}"]`);
+        const resultItem = resultElementById.get(nodeId);
         if (resultItem) {
           selectedNodeIds.add(nodeId);
           resultItem.classList.add('selected');
